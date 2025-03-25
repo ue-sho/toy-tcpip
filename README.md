@@ -28,13 +28,18 @@ This will create the executables in the `bin` directory.
 Because the application uses raw sockets, it requires root privileges:
 
 ```bash
+# Ethernet test
 sudo ./bin/ethernet_test <interface_name>
+
+# ARP test
+sudo ./bin/arp_test <interface_name> <local_ip_address> [target_ip_address]
 ```
 
 Or you can use the make run target:
 
 ```bash
 make run-ethernet_test
+make run-arp_test
 ```
 
 ## Features
@@ -45,7 +50,7 @@ make run-ethernet_test
   - [ ] tap device on BSD
   - [ ] BFP on BSD
 - [x] Ethernet
-- [ ] ARP
+- [x] ARP
 - [ ] IP
   - [ ] ip_tx
   - [ ] ip_rx
@@ -65,6 +70,7 @@ Detailed documentation for each component is available in the `docs` directory:
 
 - [Raw Socket Implementation](docs/raw_socket.md) - Base network interface implementation
 - [Ethernet Layer](docs/ethernet.md) - Ethernet frame handling implementation
+- [ARP Protocol](docs/arp.md) - Address Resolution Protocol implementation
 
 ## License
 

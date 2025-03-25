@@ -6,8 +6,8 @@ OBJDIR = obj
 SRCDIR = src
 TESTDIR = tests
 
-# Source files (ただしテストファイルは除く)
-SRC_FILES = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(SRCDIR)/*/*.cpp)
+# Source files (excluding test files)
+SRC_FILES = $(wildcard $(SRCDIR)/device/*.cpp) $(wildcard $(SRCDIR)/ethernet/*.cpp) $(wildcard $(SRCDIR)/arp/*.cpp)
 SRC_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC_FILES))
 
 # Test targets
@@ -17,30 +17,30 @@ TEST_TARGETS = $(patsubst $(TESTDIR)/%.cpp,$(TARGET_DIR)/%,$(TEST_SRCS))
 all: directories $(SRC_OBJS) $(TEST_TARGETS)
 
 directories:
-	mkdir -p $(TARGET_DIR) $(OBJDIR) $(OBJDIR)/ethernet $(OBJDIR)/device
+	mkdir -p $(TARGET_DIR) $(OBJDIR)/device $(OBJDIR)/ethernet $(OBJDIR)/arp
 
-# ビルドルール: テスト実行ファイル
+# Build rule: test executables
 $(TARGET_DIR)/%: $(TESTDIR)/%.cpp $(SRC_OBJS)
 	$(CC) $(CFLAGS) -o $@ $< $(SRC_OBJS) $(LDFLAGS)
 
-# ビルドルール: ソースファイルのオブジェクトファイル
+# Build rule: source object files
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# 特定のテストをビルド
+# Build specific test
 build-%: directories $(SRC_OBJS)
-	$(CC) $(CFLAGS) -o $(TARGET_DIR)/$* $(TESTDIR)/$*.cpp $(SRC_OBJS) $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $(TARGET_DIR)/$* $(TESTDIR)/$*.cpp $(SRC_OBJS) $(LDFLAGS) -pthread
 
-# 特定のテストを実行
+# Run specific test
 run-%: $(TARGET_DIR)/%
 	sudo $<
 
 clean:
-	rm -rf $(OBJDIR)/*.o $(OBJDIR)/*/*.o $(TEST_TARGETS)
+	rm -rf $(OBJDIR)/*/*.o $(TEST_TARGETS)
 
 list-tests:
-	@echo "利用可能なテスト:"
+	@echo "Available tests:"
 	@for test in $(TEST_TARGETS); do \
 		basename $$test; \
 	done
