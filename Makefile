@@ -7,7 +7,7 @@ SRCDIR = src
 TESTDIR = tests
 
 # Source files (excluding test files)
-SRC_FILES = $(wildcard $(SRCDIR)/device/*.cpp) $(wildcard $(SRCDIR)/ethernet/*.cpp) $(wildcard $(SRCDIR)/arp/*.cpp) $(wildcard $(SRCDIR)/ip/*.cpp) $(wildcard $(SRCDIR)/common/*.cpp)
+SRC_FILES = $(wildcard $(SRCDIR)/device/*.cpp) $(wildcard $(SRCDIR)/ethernet/*.cpp) $(wildcard $(SRCDIR)/arp/*.cpp) $(wildcard $(SRCDIR)/ip/*.cpp) $(wildcard $(SRCDIR)/icmp/*.cpp) $(wildcard $(SRCDIR)/common/*.cpp)
 SRC_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC_FILES))
 
 # Test targets
@@ -17,7 +17,7 @@ TEST_TARGETS = $(patsubst $(TESTDIR)/%.cpp,$(TARGET_DIR)/%,$(TEST_SRCS))
 all: directories $(SRC_OBJS) $(TEST_TARGETS)
 
 directories:
-	mkdir -p $(TARGET_DIR) $(OBJDIR)/device $(OBJDIR)/ethernet $(OBJDIR)/arp $(OBJDIR)/ip $(OBJDIR)/common
+	mkdir -p $(TARGET_DIR) $(OBJDIR)/device $(OBJDIR)/ethernet $(OBJDIR)/arp $(OBJDIR)/ip $(OBJDIR)/icmp $(OBJDIR)/common
 
 # Build rule: test executables
 $(TARGET_DIR)/%: $(TESTDIR)/%.cpp $(SRC_OBJS)

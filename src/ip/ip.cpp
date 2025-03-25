@@ -321,11 +321,14 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
     MacAddress dst_mac;
     if (!arp_->lookup(dst_ip, dst_mac)) {
         // ARP resolution needed
-        std::cerr << "ARP resolution needed for " << ipToString(dst_ip) << std::endl;
+        std::cout << "ARP resolution needed for " << ipToString(dst_ip) << std::endl;
 
         // Start ARP resolution
         bool resolved = false;
         arp_->resolve(dst_ip, [&](IPv4Address ip, const MacAddress& mac, bool success) {
+            std::cout << "ARP callback received: IP=" << ipToString(ip)
+                      << ", MAC=" << macToString(mac)
+                      << ", success=" << (success ? "true" : "false") << std::endl;
             if (success) {
                 dst_mac = mac;
                 resolved = true;
@@ -333,18 +336,22 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
         });
 
         // Wait for resolution (in a real implementation, this would be asynchronous)
+        std::cout << "Waiting for ARP resolution..." << std::endl;
         for (int i = 0; i < 10 && !resolved; i++) {
             // Process pending requests
             arp_->processPendingRequests();
 
             // Wait for a bit
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         }
 
         if (!resolved) {
             std::cerr << "Failed to resolve MAC address for " << ipToString(dst_ip) << std::endl;
             return false;
         }
+
+        std::cout << "Successfully resolved MAC address for " << ipToString(dst_ip)
+                  << " -> " << macToString(dst_mac) << std::endl;
     }
 
     // If packet fits in MTU, send it
@@ -362,6 +369,10 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
         }
 
         // Send through Ethernet layer
+        std::cout << "Sending IP packet to " << ipToString(dst_ip)
+                  << " via MAC " << macToString(dst_mac)
+                  << ", protocol=" << (int)protocol
+                  << ", size=" << serialized_size << " bytes" << std::endl;
         return ethernet_->sendFrame(dst_mac, EtherType::IPV4, buffer.data(), serialized_size);
     }
 

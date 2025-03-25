@@ -325,6 +325,8 @@ void ARP::handleARPPacket(const uint8_t* data, size_t length,
 
     // Add sender IP and MAC to cache
     addEntry(sender_ip, sender_mac);
+    std::cout << "Added/Updated ARP cache entry for " << ipToString(sender_ip)
+              << " -> " << macToString(sender_mac) << std::endl;
 
     // If ARP request for our IP, send ARP reply
     if (operation == ARPOperation::REQUEST && target_ip == local_ip_) {
