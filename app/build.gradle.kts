@@ -27,6 +27,13 @@ dependencies {
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
+    // JNA for native access (for tap device)
+    implementation("net.java.dev.jna:jna:5.13.0")
+    implementation("net.java.dev.jna:jna-platform:5.13.0")
+
+    // Kotlinx coroutines for async operations
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
     // This dependency is used by the application.
     implementation(libs.guava)
 }
@@ -40,7 +47,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = "org.example.AppKt"
+    mainClass = "com.toy.tcpip.MainKt"
 }
 
 tasks.named<Test>("test") {
