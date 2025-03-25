@@ -129,7 +129,13 @@ int RawSocketDevice::send(uint8_t* buffer, int length) {
         return -1;
     }
 
-    return pcap_inject(context_->handle, buffer, length);
+    int result = pcap_inject(context_->handle, buffer, length);
+    if (result < 0) {
+        std::cerr << "Failed to inject packet: "
+                  << pcap_geterr(context_->handle) << std::endl;
+    }
+
+    return result;
 }
 
 // Receive data from the device

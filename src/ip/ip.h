@@ -164,10 +164,10 @@ struct IPSendOptions {
 };
 
 // IP layer class
-class IPLayer {
+class IP {
 public:
     // Constructor
-    IPLayer(std::shared_ptr<Ethernet> ethernet, std::shared_ptr<ARP> arp,
+    IP(std::shared_ptr<Ethernet> ethernet, std::shared_ptr<ARP> arp,
            IPv4Address local_ip);
 
     // Initialize IP layer

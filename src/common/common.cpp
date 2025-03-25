@@ -30,15 +30,6 @@ MacAddress stringToMac(const std::string& mac_str) {
     return mac;
 }
 
-uint16_t netToHost16(uint16_t netshort) {
-    return ((netshort & 0x00FF) << 8) | ((netshort & 0xFF00) >> 8);
-}
-
-uint16_t hostToNet16(uint16_t hostshort) {
-    return ((hostshort & 0x00FF) << 8) | ((hostshort & 0xFF00) >> 8);
-}
-
-
 std::string ipToString(IPv4Address ip) {
     struct in_addr addr;
     addr.s_addr = htonl(ip);
@@ -63,6 +54,6 @@ bool parseIpAddress(const std::string& ip_str, IPv4Address& ip) {
         return false;
     }
 
-    ip = addr.s_addr;
+    ip = ntohl(addr.s_addr);
     return true;
 }

@@ -16,7 +16,7 @@ EthernetFrame::EthernetFrame(const MacAddress& dst, const MacAddress& src, Ether
     // Set header fields
     header_.dst_mac = dst;
     header_.src_mac = src;
-    header_.ether_type = hostToNet16(static_cast<uint16_t>(type));
+    header_.ether_type = htons(static_cast<uint16_t>(type));
 }
 
 std::unique_ptr<EthernetFrame> EthernetFrame::fromBuffer(const uint8_t* buffer, size_t length) {
@@ -55,11 +55,11 @@ void EthernetFrame::setSourceMac(const MacAddress& mac) {
 }
 
 EtherType EthernetFrame::getEtherType() const {
-    return static_cast<EtherType>(netToHost16(header_.ether_type));
+    return static_cast<EtherType>(ntohs(header_.ether_type));
 }
 
 void EthernetFrame::setEtherType(EtherType type) {
-    header_.ether_type = hostToNet16(static_cast<uint16_t>(type));
+    header_.ether_type = htons(static_cast<uint16_t>(type));
 }
 
 const std::vector<uint8_t>& EthernetFrame::getPayload() const {
@@ -153,7 +153,7 @@ void Ethernet::registerHandler(EtherType type, ProtocolHandler handler) {
 
 MacAddress Ethernet::getMacAddress() const {
     MacAddress mac;
-    std::memcpy(mac.data(), device_->getMacAddress(), mac.size());
+    std::memcpy(mac.data(), device_->getMacAddress().data(), mac.size());
     return mac;
 }
 

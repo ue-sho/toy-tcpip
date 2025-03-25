@@ -18,12 +18,6 @@ std::string macToString(const MacAddress& mac);
 // Convert string to MAC address
 MacAddress stringToMac(const std::string& mac_str);
 
-// Network to host byte order conversion
-uint16_t netToHost16(uint16_t netshort);
-
-// Host to network byte order conversion
-uint16_t hostToNet16(uint16_t hostshort);
-
 // Type for representing IPv4 addresses
 using IPv4Address = uint32_t;
 

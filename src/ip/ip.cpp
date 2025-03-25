@@ -265,7 +265,7 @@ size_t IPPacket::getTotalSize() const {
 }
 
 // IP layer implementation
-IPLayer::IPLayer(std::shared_ptr<Ethernet> ethernet, std::shared_ptr<ARP> arp, IPv4Address local_ip)
+IP::IP(std::shared_ptr<Ethernet> ethernet, std::shared_ptr<ARP> arp, IPv4Address local_ip)
     : ip_id_counter_(0), ethernet_(ethernet), arp_(arp), local_ip_(local_ip) {
 
     if (!ethernet_ || !arp_) {
@@ -273,7 +273,7 @@ IPLayer::IPLayer(std::shared_ptr<Ethernet> ethernet, std::shared_ptr<ARP> arp, I
     }
 }
 
-bool IPLayer::init() {
+bool IP::init() {
     // Register IP packet handler with Ethernet layer
     ethernet_->registerHandler(EtherType::IPV4,
         [this](const uint8_t* data, size_t length,
@@ -284,7 +284,7 @@ bool IPLayer::init() {
     return true;
 }
 
-bool IPLayer::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
+bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
                    size_t length, const IPSendOptions& options) {
     // Check maximum packet size
     if (length > IP_MAX_PACKET_SIZE - IP_HEADER_MIN_SIZE) {
@@ -333,12 +333,12 @@ bool IPLayer::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* da
         });
 
         // Wait for resolution (in a real implementation, this would be asynchronous)
-        for (int i = 0; i < 3 && !resolved; i++) {
+        for (int i = 0; i < 10 && !resolved; i++) {
             // Process pending requests
             arp_->processPendingRequests();
 
             // Wait for a bit
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         if (!resolved) {
@@ -407,28 +407,28 @@ bool IPLayer::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* da
     return true;
 }
 
-void IPLayer::registerProtocolHandler(uint8_t protocol, IPProtocolHandler handler) {
+void IP::registerProtocolHandler(uint8_t protocol, IPProtocolHandler handler) {
     protocol_handlers_[protocol] = std::move(handler);
 }
 
-void IPLayer::unregisterProtocolHandler(uint8_t protocol) {
+void IP::unregisterProtocolHandler(uint8_t protocol) {
     protocol_handlers_.erase(protocol);
 }
 
-IPv4Address IPLayer::getLocalIP() const {
+IPv4Address IP::getLocalIP() const {
     return local_ip_;
 }
 
-void IPLayer::setLocalIP(IPv4Address ip) {
+void IP::setLocalIP(IPv4Address ip) {
     local_ip_ = ip;
     arp_->setLocalIP(ip);
 }
 
-bool IPLayer::isLocalIP(IPv4Address ip) const {
+bool IP::isLocalIP(IPv4Address ip) const {
     return ip == local_ip_;
 }
 
-void IPLayer::processFragmentTimeouts() {
+void IP::processFragmentTimeouts() {
     std::lock_guard<std::mutex> lock(fragment_mutex_);
 
     auto now = std::chrono::steady_clock::now();
@@ -446,7 +446,7 @@ void IPLayer::processFragmentTimeouts() {
     );
 }
 
-void IPLayer::handleIPPacket(const uint8_t* data, size_t length,
+void IP::handleIPPacket(const uint8_t* data, size_t length,
                        const MacAddress& src_mac, const MacAddress& dst_mac) {
     // Parse IP packet
     auto packet = IPPacket::fromBuffer(data, length);
@@ -478,7 +478,7 @@ void IPLayer::handleIPPacket(const uint8_t* data, size_t length,
     processIPPacket(std::move(packet), length);
 }
 
-void IPLayer::processIPPacket(std::unique_ptr<IPPacket> packet, size_t length) {
+void IP::processIPPacket(std::unique_ptr<IPPacket> packet, size_t length) {
     // Check if packet is fragmented
     if (packet->getFragmentOffset() > 0 || packet->getMoreFragments()) {
         // Handle fragmented packet
@@ -503,7 +503,7 @@ void IPLayer::processIPPacket(std::unique_ptr<IPPacket> packet, size_t length) {
     }
 }
 
-bool IPLayer::handleFragment(std::unique_ptr<IPPacket> packet) {
+bool IP::handleFragment(std::unique_ptr<IPPacket> packet) {
     std::lock_guard<std::mutex> lock(fragment_mutex_);
 
     uint16_t id = packet->getIdentification();
@@ -562,7 +562,7 @@ bool IPLayer::handleFragment(std::unique_ptr<IPPacket> packet) {
     return tryReassemble(*it);
 }
 
-bool IPLayer::tryReassemble(IPFragmentEntry& entry) {
+bool IP::tryReassemble(IPFragmentEntry& entry) {
     // Check if we have all fragments
     if (entry.total_length == 0) {
         // We don't know the total length yet
@@ -607,6 +607,6 @@ bool IPLayer::tryReassemble(IPFragmentEntry& entry) {
     }
 }
 
-uint16_t IPLayer::generateIPId() {
+uint16_t IP::generateIPId() {
     return ip_id_counter_++;
 }

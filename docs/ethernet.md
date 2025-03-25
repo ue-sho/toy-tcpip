@@ -167,10 +167,10 @@ namespace EthernetUtils {
     MacAddress stringToMac(const std::string& mac_str);
 
     // Network to host byte order conversion
-    uint16_t netToHost16(uint16_t netshort);
+    uint16_t ntohs(uint16_t netshort);
 
     // Host to network byte order conversion
-    uint16_t hostToNet16(uint16_t hostshort);
+    uint16_t htons(uint16_t hostshort);
 }
 ```
 

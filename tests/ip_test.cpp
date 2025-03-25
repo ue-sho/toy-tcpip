@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
         }
 
         // Create IP layer
-        auto ip = std::make_shared<IPLayer>(ethernet, arp, local_ip);
+        auto ip = std::make_shared<IP>(ethernet, arp, local_ip);
         if (!ip->init()) {
             std::cerr << "Failed to initialize IP module" << std::endl;
             return 1;

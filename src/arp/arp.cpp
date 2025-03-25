@@ -17,8 +17,8 @@ ARPPacket::ARPPacket() {
     std::memset(&header_, 0, sizeof(header_));
 
     // Set fixed fields
-    header_.hardware_type = hostToNet16(ARP_HARDWARE_TYPE_ETHERNET);
-    header_.protocol_type = hostToNet16(ARP_PROTOCOL_TYPE_IPV4);
+    header_.hardware_type = htons(ARP_HARDWARE_TYPE_ETHERNET);
+    header_.protocol_type = htons(ARP_PROTOCOL_TYPE_IPV4);
     header_.hardware_size = ARP_HARDWARE_SIZE_ETHERNET;
     header_.protocol_size = ARP_PROTOCOL_SIZE_IPV4;
 }
@@ -44,11 +44,11 @@ std::unique_ptr<ARPPacket> ARPPacket::fromBuffer(const uint8_t* buffer, size_t l
 }
 
 ARPOperation ARPPacket::getOperation() const {
-    return static_cast<ARPOperation>(netToHost16(header_.operation));
+    return static_cast<ARPOperation>(ntohs(header_.operation));
 }
 
 void ARPPacket::setOperation(ARPOperation op) {
-    header_.operation = hostToNet16(static_cast<uint16_t>(op));
+    header_.operation = htons(static_cast<uint16_t>(op));
 }
 
 const MacAddress& ARPPacket::getSenderMAC() const {
@@ -60,11 +60,11 @@ void ARPPacket::setSenderMAC(const MacAddress& mac) {
 }
 
 IPv4Address ARPPacket::getSenderIP() const {
-    return header_.sender_ip;
+    return ntohl(header_.sender_ip);
 }
 
 void ARPPacket::setSenderIP(IPv4Address ip) {
-    header_.sender_ip = ip;
+    header_.sender_ip = htonl(ip);
 }
 
 const MacAddress& ARPPacket::getTargetMAC() const {
@@ -76,11 +76,11 @@ void ARPPacket::setTargetMAC(const MacAddress& mac) {
 }
 
 IPv4Address ARPPacket::getTargetIP() const {
-    return header_.target_ip;
+    return ntohl(header_.target_ip);
 }
 
 void ARPPacket::setTargetIP(IPv4Address ip) {
-    header_.target_ip = ip;
+    header_.target_ip = htonl(ip);
 }
 
 size_t ARPPacket::serialize(uint8_t* buffer, size_t buffer_size) const {
@@ -232,6 +232,9 @@ void ARP::processPendingRequests() {
 
     std::lock_guard<std::mutex> lock(cache_mutex_);
 
+    // Store IPs to remove from cache after processing
+    std::vector<IPv4Address> ips_to_remove;
+
     // Process timed out pending requests
     for (auto it = pending_requests_.begin(); it != pending_requests_.end(); ) {
         auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->timestamp);
@@ -246,17 +249,24 @@ void ARP::processPendingRequests() {
                 ++it;
             } else {
                 // If max retries exceeded, fail
-                completePendingRequest(it->ip, MAC_ZERO, false);
+                IPv4Address ip = it->ip;  // Save IP before iterator is invalidated
+                completePendingRequest(ip, MAC_ZERO, false);
 
-                // Remove entry
-                cache_.erase(it->ip);
+                // Add to list of IPs to remove from cache
+                ips_to_remove.push_back(ip);
 
-                // Remove from pending request list
-                it = pending_requests_.erase(it);
+                // Next iteration
+                // Note: completePendingRequest already removed the entry from pending_requests_
+                // so we don't need to increment the iterator
             }
         } else {
             ++it;
         }
+    }
+
+    // Remove entries from cache
+    for (const auto& ip : ips_to_remove) {
+        cache_.erase(ip);
     }
 }
 
@@ -296,24 +306,40 @@ void ARP::handleARPPacket(const uint8_t* data, size_t length,
     // Parse ARP packet
     auto arp_packet = ARPPacket::fromBuffer(data, length);
     if (!arp_packet) {
+        std::cerr << "Failed to parse ARP packet" << std::endl;
         return;
     }
 
+    // Get packet information
+    auto sender_ip = arp_packet->getSenderIP();
+    auto sender_mac = arp_packet->getSenderMAC();
+    auto target_ip = arp_packet->getTargetIP();
+    auto operation = arp_packet->getOperation();
+
+    std::cout << "Received ARP packet: "
+              << (operation == ARPOperation::REQUEST ? "REQUEST" : "REPLY")
+              << " from IP: " << ipToString(sender_ip)
+              << ", MAC: " << macToString(sender_mac)
+              << ", target IP: " << ipToString(target_ip)
+              << std::endl;
+
     // Add sender IP and MAC to cache
-    addEntry(arp_packet->getSenderIP(), arp_packet->getSenderMAC());
+    addEntry(sender_ip, sender_mac);
 
     // If ARP request for our IP, send ARP reply
-    if (arp_packet->getOperation() == ARPOperation::REQUEST &&
-        arp_packet->getTargetIP() == local_ip_) {
-
-        sendARPReply(arp_packet->getSenderIP(), arp_packet->getSenderMAC());
+    if (operation == ARPOperation::REQUEST && target_ip == local_ip_) {
+        std::cout << "Sending ARP reply to " << ipToString(sender_ip) << std::endl;
+        sendARPReply(sender_ip, sender_mac);
     }
 }
 
 void ARP::sendARPRequest(IPv4Address target_ip) {
+    // Get our MAC address
+    MacAddress local_mac = ethernet_->getMacAddress();
+
     // Create ARP request packet
     ARPPacket packet(ARPOperation::REQUEST,
-                   ethernet_->getMacAddress(), local_ip_,
+                   local_mac, local_ip_,
                    MAC_ZERO, target_ip);
 
     // Allocate buffer
@@ -323,9 +349,13 @@ void ARP::sendARPRequest(IPv4Address target_ip) {
     packet.serialize(buffer.data(), buffer.size());
 
     // Send through Ethernet layer
-    ethernet_->sendFrame(MAC_BROADCAST, EtherType::ARP, buffer.data(), buffer.size());
+    bool sent = ethernet_->sendFrame(MAC_BROADCAST, EtherType::ARP, buffer.data(), buffer.size());
 
-    std::cout << "Sent ARP request for IP: " << ipToString(target_ip) << std::endl;
+    std::cout << "Sent ARP request for IP: " << ipToString(target_ip)
+              << " from " << ipToString(local_ip_)
+              << " (MAC: " << macToString(local_mac) << ")"
+              << (sent ? " [SUCCESS]" : " [FAILED]")
+              << std::endl;
 }
 
 void ARP::sendARPReply(IPv4Address target_ip, const MacAddress& target_mac) {
@@ -348,19 +378,23 @@ void ARP::sendARPReply(IPv4Address target_ip, const MacAddress& target_mac) {
 }
 
 void ARP::completePendingRequest(IPv4Address ip, const MacAddress& mac, bool success) {
+
     // Find pending request
     auto it = std::find_if(pending_requests_.begin(), pending_requests_.end(),
                       [ip](const PendingARPRequest& req) { return req.ip == ip; });
 
     if (it != pending_requests_.end()) {
-        // Call all registered callbacks
-        for (const auto& callback : it->callbacks) {
+        // Make a copy of callbacks before erasing the request
+        std::vector<ARPResolveCallback> callbacks = it->callbacks;
+
+        // Remove from list first
+        pending_requests_.erase(it);
+
+        // Call all registered callbacks using the copy
+        for (const auto& callback : callbacks) {
             if (callback) {
                 callback(ip, mac, success);
             }
         }
-
-        // Remove from list
-        pending_requests_.erase(it);
     }
 }
