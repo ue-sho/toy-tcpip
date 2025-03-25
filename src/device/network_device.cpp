@@ -4,9 +4,9 @@
 
 NetworkDevice::NetworkDevice(const std::string& interface_name, int mtu)
     : name_(interface_name),
-      mtu_(mtu > 0 ? mtu : 1500)
+      mtu_(mtu > 0 ? mtu : 1500),
+      mac_address_({0, 0, 0, 0, 0, 0})
 {
-    std::memset(mac_address_, 0, sizeof(mac_address_));
 }
 
 NetworkDevice::~NetworkDevice() {

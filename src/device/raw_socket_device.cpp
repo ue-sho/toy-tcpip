@@ -57,7 +57,9 @@ int RawSocketDevice::getMacAddress() {
                 ifaptr->ifa_addr->sa_family == AF_LINK) {
                 ptr = reinterpret_cast<unsigned char*>(LLADDR(
                     reinterpret_cast<struct sockaddr_dl*>(ifaptr->ifa_addr)));
-                std::memcpy(mac_address_, ptr, 6);
+                for (size_t i = 0; i < 6; i++) {
+                    mac_address_[i] = ptr[i];
+                }
                 freeifaddrs(ifap);
                 return 0;
             }

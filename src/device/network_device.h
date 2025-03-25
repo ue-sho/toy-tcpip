@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include "../common/common.h"  // Added for MacAddress type
 
 // NetworkDevice class declaration
 class NetworkDevice {
@@ -31,12 +32,12 @@ public:
     // Common getters
     const std::string& getName() const { return name_; }
     int getMtu() const { return mtu_; }
-    const uint8_t* getMacAddress() const { return mac_address_; }
+    const MacAddress& getMacAddress() const { return mac_address_; }
 
 protected:
     std::string name_;          // Interface name (e.g., "en0")
     int mtu_;                   // Maximum Transmission Unit
-    uint8_t mac_address_[6];    // MAC address of the device
+    MacAddress mac_address_;    // MAC address of the device
 };
 
 #endif // NETWORK_DEVICE_H
