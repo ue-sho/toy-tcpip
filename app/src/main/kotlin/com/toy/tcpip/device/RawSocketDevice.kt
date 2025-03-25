@@ -42,6 +42,9 @@ class RawSocketDevice(
         private const val ETH_P_ALL = 0x0003
         private const val SIOCGIFINDEX = 0x8933L
         private const val SIOCGIFHWADDR = 0x8927L
+        private const val SIOCGIFFLAGS = 0x8913L
+        private const val SIOCSIFFLAGS = 0x8914L
+        private const val IFF_PROMISC = 0x100
 
         private val cLibrary: CLibrary = Native.load("c", CLibrary::class.java)
     }
@@ -70,6 +73,12 @@ class RawSocketDevice(
     class IfreqHwaddr : Structure() {
         @JvmField var ifr_name = ByteArray(16)
         @JvmField var ifr_hwaddr = ByteArray(14) // sa_family (2 bytes) + sa_data (14 bytes)
+    }
+
+    @Structure.FieldOrder("ifr_name", "ifr_flags")
+    class IfreqFlags : Structure() {
+        @JvmField var ifr_name = ByteArray(16)
+        @JvmField var ifr_flags: Short = 0
     }
 
     // Socket file descriptor
@@ -133,6 +142,9 @@ class RawSocketDevice(
             if (bindRet < 0) {
                 throw IOException("Could not bind to interface $interfaceName")
             }
+
+            // Enable promiscuous mode
+            setPromiscuousMode()
 
             println("Raw socket opened on interface $interfaceName (index=$ifindex). " +
                    "MAC address: ${bytesToMacAddress(macAddress)}")
@@ -236,5 +248,34 @@ class RawSocketDevice(
         }
 
         return ifrHw
+    }
+
+    /**
+     * Enable promiscuous mode on the interface
+     */
+    private fun setPromiscuousMode() {
+        val ifrFlags = IfreqFlags()
+        System.arraycopy(
+            interfaceName.toByteArray(),
+            0,
+            ifrFlags.ifr_name,
+            0,
+            Math.min(interfaceName.length, ifrFlags.ifr_name.size - 1)
+        )
+
+        // Get current flags
+        val getFlags = cLibrary.ioctl(fd, SIOCGIFFLAGS, ifrFlags.pointer)
+        if (getFlags < 0) {
+            throw IOException("Could not get interface flags for $interfaceName")
+        }
+
+        // Set promiscuous mode flag
+        ifrFlags.ifr_flags = (ifrFlags.ifr_flags.toInt() or IFF_PROMISC).toShort()
+
+        // Set new flags
+        val setFlags = cLibrary.ioctl(fd, SIOCSIFFLAGS, ifrFlags.pointer)
+        if (setFlags < 0) {
+            throw IOException("Could not set interface flags for $interfaceName")
+        }
     }
 }
