@@ -1,30 +1,47 @@
-CC = gcc
-CFLAGS = -Wall -I./src -I/usr/local/opt/libpcap/include
+CC = g++
+CFLAGS = -Wall -std=c++17 -I./src -I/usr/local/opt/libpcap/include
 LDFLAGS = -L/usr/local/opt/libpcap/lib -lpcap
-TARGET = bin/toy-tcpip
+TARGET_DIR = bin
+OBJDIR = obj
 SRCDIR = src
 TESTDIR = tests
-OBJDIR = obj
 
-# Source files
-SRCS = $(SRCDIR)/raw_socket_device.c $(TESTDIR)/raw_socket_main.c
-OBJS = $(OBJDIR)/raw_socket_device.o $(OBJDIR)/raw_socket_main.o
+# Source files (ただしテストファイルは除く)
+SRC_FILES = $(wildcard $(SRCDIR)/*.cpp)
+SRC_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC_FILES))
 
-all: $(TARGET)
+# Test targets
+TEST_SRCS = $(wildcard $(TESTDIR)/*.cpp)
+TEST_TARGETS = $(patsubst $(TESTDIR)/%.cpp,$(TARGET_DIR)/%,$(TEST_SRCS))
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+all: directories $(SRC_OBJS) $(TEST_TARGETS)
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.c
+directories:
+	mkdir -p $(TARGET_DIR) $(OBJDIR)
+
+# ビルドルール: テスト実行ファイル
+$(TARGET_DIR)/%: $(TESTDIR)/%.cpp $(SRC_OBJS)
+	$(CC) $(CFLAGS) -o $@ $< $(SRC_OBJS) $(LDFLAGS)
+
+# ビルドルール: ソースファイルのオブジェクトファイル
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR)/%.o: $(TESTDIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# 特定のテストをビルド
+build-%: directories $(SRC_OBJS)
+	$(CC) $(CFLAGS) -o $(TARGET_DIR)/$* $(TESTDIR)/$*.cpp $(SRC_OBJS) $(LDFLAGS)
 
-run: $(TARGET)
-	sudo $(TARGET)
+# 特定のテストを実行
+run-%: $(TARGET_DIR)/%
+	sudo $<
 
 clean:
-	rm -rf $(TARGET) $(OBJS)
+	rm -rf $(OBJDIR)/*.o $(TEST_TARGETS)
 
-.PHONY: all run clean
+list-tests:
+	@echo "利用可能なテスト:"
+	@for test in $(TEST_TARGETS); do \
+		basename $$test; \
+	done
+
+.PHONY: all directories clean run-% build-% list-tests

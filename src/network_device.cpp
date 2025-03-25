@@ -1,4 +1,4 @@
-#include "NetworkDevice.h"
+#include "network_device.h"
 #include <cstring>
 #include <iostream>
 

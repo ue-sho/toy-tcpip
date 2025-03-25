@@ -1,7 +1,7 @@
 #ifndef RAW_SOCKET_DEVICE_H
 #define RAW_SOCKET_DEVICE_H
 
-#include "NetworkDevice.h"
+#include "network_device.h"
 #include <pcap.h>
 #include <memory>
 
