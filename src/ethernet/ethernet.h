@@ -9,6 +9,7 @@
 #include <functional>
 #include <string>
 #include "../device/network_device.h"
+#include "../common/common.h"
 
 // Ethernet Frame Type values
 enum class EtherType : uint16_t {
@@ -17,15 +18,6 @@ enum class EtherType : uint16_t {
     IPV6 = 0x86DD,
     // Add more as needed
 };
-
-// Ethernet MAC address (6 bytes)
-using MacAddress = std::array<uint8_t, 6>;
-
-// Special MAC addresses
-namespace MAC {
-    const MacAddress BROADCAST = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-    const MacAddress ZERO = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-}
 
 // Ethernet header structure
 #pragma pack(push, 1)
@@ -101,6 +93,7 @@ public:
     // Get device MAC address
     MacAddress getMacAddress() const;
 
+    int getDeviceMtu() const;
 private:
     // Network device
     std::shared_ptr<NetworkDevice> device_;
@@ -111,20 +104,5 @@ private:
     // Device packet receive callback
     static void packetReceiveCallback(uint8_t* buffer, size_t length, void* arg);
 };
-
-// Utility functions
-namespace EthernetUtils {
-    // Convert MAC address to string
-    std::string macToString(const MacAddress& mac);
-
-    // Convert string to MAC address
-    MacAddress stringToMac(const std::string& mac_str);
-
-    // Network to host byte order conversion
-    uint16_t netToHost16(uint16_t netshort);
-
-    // Host to network byte order conversion
-    uint16_t hostToNet16(uint16_t hostshort);
-}
 
 #endif // ETHERNET_H

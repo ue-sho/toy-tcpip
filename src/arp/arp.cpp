@@ -4,24 +4,6 @@
 #include <iostream>
 #include <algorithm>
 
-// Implementation of IPv4 address conversion functions
-namespace IP {
-    std::string toString(IPv4Address ip) {
-        char buffer[INET_ADDRSTRLEN];
-        struct in_addr addr;
-        addr.s_addr = ip;
-        inet_ntop(AF_INET, &addr, buffer, INET_ADDRSTRLEN);
-        return std::string(buffer);
-    }
-
-    IPv4Address fromString(const std::string& ip_str) {
-        struct in_addr addr;
-        if (inet_pton(AF_INET, ip_str.c_str(), &addr) != 1) {
-            return ZERO; // Conversion failed
-        }
-        return addr.s_addr;
-    }
-}
 
 // ARP packet constants
 constexpr uint16_t ARP_HARDWARE_TYPE_ETHERNET = 1;
@@ -35,8 +17,8 @@ ARPPacket::ARPPacket() {
     std::memset(&header_, 0, sizeof(header_));
 
     // Set fixed fields
-    header_.hardware_type = EthernetUtils::hostToNet16(ARP_HARDWARE_TYPE_ETHERNET);
-    header_.protocol_type = EthernetUtils::hostToNet16(ARP_PROTOCOL_TYPE_IPV4);
+    header_.hardware_type = hostToNet16(ARP_HARDWARE_TYPE_ETHERNET);
+    header_.protocol_type = hostToNet16(ARP_PROTOCOL_TYPE_IPV4);
     header_.hardware_size = ARP_HARDWARE_SIZE_ETHERNET;
     header_.protocol_size = ARP_PROTOCOL_SIZE_IPV4;
 }
@@ -62,11 +44,11 @@ std::unique_ptr<ARPPacket> ARPPacket::fromBuffer(const uint8_t* buffer, size_t l
 }
 
 ARPOperation ARPPacket::getOperation() const {
-    return static_cast<ARPOperation>(EthernetUtils::netToHost16(header_.operation));
+    return static_cast<ARPOperation>(netToHost16(header_.operation));
 }
 
 void ARPPacket::setOperation(ARPOperation op) {
-    header_.operation = EthernetUtils::hostToNet16(static_cast<uint16_t>(op));
+    header_.operation = hostToNet16(static_cast<uint16_t>(op));
 }
 
 const MacAddress& ARPPacket::getSenderMAC() const {
@@ -145,9 +127,9 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
     }
 
     // If IP is broadcast, return broadcast MAC
-    if (ip == IP::BROADCAST) {
+    if (ip == IP_BROADCAST) {
         if (callback) {
-            callback(ip, MAC::BROADCAST, true);
+            callback(ip, MAC_BROADCAST, true);
         }
         return true;
     }
@@ -186,7 +168,7 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
 
     // Add incomplete entry to ARP cache
     if (it == cache_.end()) {
-        cache_[ip] = ARPEntry(MAC::ZERO, ARPEntryState::INCOMPLETE);
+        cache_[ip] = ARPEntry(MAC_ZERO, ARPEntryState::INCOMPLETE);
     }
 
     // Send ARP request
@@ -197,8 +179,8 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
 
 bool ARP::lookup(IPv4Address ip, MacAddress& mac) {
     // For broadcast IP address
-    if (ip == IP::BROADCAST) {
-        mac = MAC::BROADCAST;
+    if (ip == IP_BROADCAST) {
+        mac = MAC_BROADCAST;
         return true;
     }
 
@@ -264,7 +246,7 @@ void ARP::processPendingRequests() {
                 ++it;
             } else {
                 // If max retries exceeded, fail
-                completePendingRequest(it->ip, MAC::ZERO, false);
+                completePendingRequest(it->ip, MAC_ZERO, false);
 
                 // Remove entry
                 cache_.erase(it->ip);
@@ -332,7 +314,7 @@ void ARP::sendARPRequest(IPv4Address target_ip) {
     // Create ARP request packet
     ARPPacket packet(ARPOperation::REQUEST,
                    ethernet_->getMacAddress(), local_ip_,
-                   MAC::ZERO, target_ip);
+                   MAC_ZERO, target_ip);
 
     // Allocate buffer
     std::vector<uint8_t> buffer(packet.getSize());
@@ -341,9 +323,9 @@ void ARP::sendARPRequest(IPv4Address target_ip) {
     packet.serialize(buffer.data(), buffer.size());
 
     // Send through Ethernet layer
-    ethernet_->sendFrame(MAC::BROADCAST, EtherType::ARP, buffer.data(), buffer.size());
+    ethernet_->sendFrame(MAC_BROADCAST, EtherType::ARP, buffer.data(), buffer.size());
 
-    std::cout << "Sent ARP request for IP: " << IP::toString(target_ip) << std::endl;
+    std::cout << "Sent ARP request for IP: " << ipToString(target_ip) << std::endl;
 }
 
 void ARP::sendARPReply(IPv4Address target_ip, const MacAddress& target_mac) {
@@ -361,8 +343,8 @@ void ARP::sendARPReply(IPv4Address target_ip, const MacAddress& target_mac) {
     // Send through Ethernet layer
     ethernet_->sendFrame(target_mac, EtherType::ARP, buffer.data(), buffer.size());
 
-    std::cout << "Sent ARP reply to IP: " << IP::toString(target_ip)
-              << ", MAC: " << EthernetUtils::macToString(target_mac) << std::endl;
+    std::cout << "Sent ARP reply to IP: " << ipToString(target_ip)
+              << ", MAC: " << macToString(target_mac) << std::endl;
 }
 
 void ARP::completePendingRequest(IPv4Address ip, const MacAddress& mac, bool success) {

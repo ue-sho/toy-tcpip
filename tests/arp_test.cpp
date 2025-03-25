@@ -1,6 +1,7 @@
 #include "../src/ethernet/ethernet.h"
 #include "../src/device/raw_socket_device.h"
 #include "../src/arp/arp.h"
+#include "../src/common/common.h"
 #include <iostream>
 #include <memory>
 #include <csignal>
@@ -18,10 +19,10 @@ void signal_handler(int signal) {
 // ARP resolve callback
 void arp_resolve_callback(IPv4Address ip, const MacAddress& mac, bool success) {
     if (success) {
-        std::cout << "ARP resolved: IP " << IP::toString(ip)
-                  << " -> MAC " << EthernetUtils::macToString(mac) << std::endl;
+        std::cout << "ARP resolved: IP " << ipToString(ip)
+                  << " -> MAC " << macToString(mac) << std::endl;
     } else {
-        std::cout << "ARP resolution failed for IP " << IP::toString(ip) << std::endl;
+        std::cout << "ARP resolution failed for IP " << ipToString(ip) << std::endl;
     }
 }
 
@@ -35,18 +36,18 @@ int main(int argc, char* argv[]) {
     std::string local_ip_str = argv[2];
 
     // Parse local IP address
-    IPv4Address local_ip = IP::fromString(local_ip_str);
-    if (local_ip == IP::ZERO) {
+    IPv4Address local_ip = stringToIp(local_ip_str);
+    if (local_ip == IP_ZERO) {
         std::cerr << "Invalid local IP address" << std::endl;
         return 1;
     }
 
     // Optional target IP address
-    IPv4Address target_ip = IP::ZERO;
+    IPv4Address target_ip = IP_ZERO;
     if (argc >= 4) {
         std::string target_ip_str = argv[3];
-        target_ip = IP::fromString(target_ip_str);
-        if (target_ip == IP::ZERO) {
+        target_ip = stringToIp(target_ip_str);
+        if (target_ip == IP_ZERO) {
             std::cerr << "Invalid target IP address" << std::endl;
             return 1;
         }
@@ -79,12 +80,12 @@ int main(int argc, char* argv[]) {
 
         // Display device MAC address and local IP
         std::cout << "Device: " << interface_name << std::endl;
-        std::cout << "MAC address: " << EthernetUtils::macToString(ethernet->getMacAddress()) << std::endl;
-        std::cout << "Local IP: " << IP::toString(local_ip) << std::endl;
+        std::cout << "MAC address: " << macToString(ethernet->getMacAddress()) << std::endl;
+        std::cout << "Local IP: " << ipToString(local_ip) << std::endl;
 
         // Start ARP resolution for target IP if specified
-        if (target_ip != IP::ZERO) {
-            std::cout << "Resolving target IP: " << IP::toString(target_ip) << std::endl;
+        if (target_ip != IP_ZERO) {
+            std::cout << "Resolving target IP: " << ipToString(target_ip) << std::endl;
             arp.resolve(target_ip, arp_resolve_callback);
         }
 

@@ -9,21 +9,7 @@
 #include <mutex>
 #include <functional>
 #include "../ethernet/ethernet.h"
-
-// Type for representing IPv4 addresses
-using IPv4Address = uint32_t;
-
-namespace IP {
-    // Special IPv4 addresses
-    constexpr IPv4Address ZERO = 0x00000000;
-    constexpr IPv4Address BROADCAST = 0xFFFFFFFF;
-
-    // Convert IPv4 address to string representation
-    std::string toString(IPv4Address ip);
-
-    // Convert string to IPv4 address
-    IPv4Address fromString(const std::string& ip_str);
-}
+#include "../common/common.h"
 
 // ARP operation codes
 enum class ARPOperation : uint16_t {

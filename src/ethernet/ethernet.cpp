@@ -16,7 +16,7 @@ EthernetFrame::EthernetFrame(const MacAddress& dst, const MacAddress& src, Ether
     // Set header fields
     header_.dst_mac = dst;
     header_.src_mac = src;
-    header_.ether_type = EthernetUtils::hostToNet16(static_cast<uint16_t>(type));
+    header_.ether_type = hostToNet16(static_cast<uint16_t>(type));
 }
 
 std::unique_ptr<EthernetFrame> EthernetFrame::fromBuffer(const uint8_t* buffer, size_t length) {
@@ -55,11 +55,11 @@ void EthernetFrame::setSourceMac(const MacAddress& mac) {
 }
 
 EtherType EthernetFrame::getEtherType() const {
-    return static_cast<EtherType>(EthernetUtils::netToHost16(header_.ether_type));
+    return static_cast<EtherType>(netToHost16(header_.ether_type));
 }
 
 void EthernetFrame::setEtherType(EtherType type) {
-    header_.ether_type = EthernetUtils::hostToNet16(static_cast<uint16_t>(type));
+    header_.ether_type = hostToNet16(static_cast<uint16_t>(type));
 }
 
 const std::vector<uint8_t>& EthernetFrame::getPayload() const {
@@ -157,6 +157,10 @@ MacAddress Ethernet::getMacAddress() const {
     return mac;
 }
 
+int Ethernet::getDeviceMtu() const {
+    return device_->getMtu();
+}
+
 void Ethernet::packetReceiveCallback(uint8_t* buffer, size_t length, void* arg) {
     auto* ethernet = static_cast<Ethernet*>(arg);
 
@@ -183,41 +187,4 @@ void Ethernet::packetReceiveCallback(uint8_t* buffer, size_t length, void* arg) 
         );
     }
     // Silently drop frames without a registered handler
-}
-
-// Utility functions
-
-std::string EthernetUtils::macToString(const MacAddress& mac) {
-    std::stringstream ss;
-    for (size_t i = 0; i < mac.size(); ++i) {
-        if (i > 0) ss << ':';
-        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(mac[i]);
-    }
-    return ss.str();
-}
-
-MacAddress EthernetUtils::stringToMac(const std::string& mac_str) {
-    MacAddress mac = {0};
-
-    // Parse MAC address string
-    int values[6];
-    int count = std::sscanf(mac_str.c_str(), "%x:%x:%x:%x:%x:%x",
-                           &values[0], &values[1], &values[2],
-                           &values[3], &values[4], &values[5]);
-
-    if (count == 6) {
-        for (int i = 0; i < 6; ++i) {
-            mac[i] = static_cast<uint8_t>(values[i]);
-        }
-    }
-
-    return mac;
-}
-
-uint16_t EthernetUtils::netToHost16(uint16_t netshort) {
-    return ((netshort & 0x00FF) << 8) | ((netshort & 0xFF00) >> 8);
-}
-
-uint16_t EthernetUtils::hostToNet16(uint16_t hostshort) {
-    return ((hostshort & 0x00FF) << 8) | ((hostshort & 0xFF00) >> 8);
 }

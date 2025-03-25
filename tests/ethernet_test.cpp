@@ -1,5 +1,6 @@
 #include "../src/ethernet/ethernet.h"
 #include "../src/device/raw_socket_device.h"
+#include "../src/common/common.h"
 #include <iostream>
 #include <memory>
 #include <csignal>
@@ -15,16 +16,16 @@ void signal_handler(int signal) {
 // Sample handler for IP packets
 void ip_packet_handler(const uint8_t* data, size_t length,
                        const MacAddress& src_mac, const MacAddress& dst_mac) {
-    std::cout << "Received IP packet from " << EthernetUtils::macToString(src_mac)
-              << " to " << EthernetUtils::macToString(dst_mac)
+    std::cout << "Received IP packet from " << macToString(src_mac)
+              << " to " << macToString(dst_mac)
               << ", length: " << length << std::endl;
 }
 
 // Sample handler for ARP packets
 void arp_packet_handler(const uint8_t* data, size_t length,
                        const MacAddress& src_mac, const MacAddress& dst_mac) {
-    std::cout << "Received ARP packet from " << EthernetUtils::macToString(src_mac)
-              << " to " << EthernetUtils::macToString(dst_mac)
+    std::cout << "Received ARP packet from " << macToString(src_mac)
+              << " to " << macToString(dst_mac)
               << ", length: " << length << std::endl;
 }
 
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
 
         // Print MAC address
         std::cout << "Device MAC address: "
-                  << EthernetUtils::macToString(ethernet.getMacAddress()) << std::endl;
+                  << macToString(ethernet.getMacAddress()) << std::endl;
 
         // Receive frames in a loop
         std::cout << "Receiving ethernet frames (Press Ctrl+C to exit)..." << std::endl;
