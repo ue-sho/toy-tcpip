@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -std=c++17 -I./src -I/usr/local/opt/libpcap/include
+CFLAGS = -Wall -std=c++17 -I./src -I/usr/local/opt/libpcap/include -D_GLIBCXX_USE_CXX11_ABI=0
 LDFLAGS = -L/usr/local/opt/libpcap/lib -lpcap
 TARGET_DIR = bin
 OBJDIR = obj
@@ -7,7 +7,7 @@ SRCDIR = src
 TESTDIR = tests
 
 # Source files (ただしテストファイルは除く)
-SRC_FILES = $(wildcard $(SRCDIR)/*.cpp)
+SRC_FILES = $(wildcard $(SRCDIR)/*.cpp) $(wildcard $(SRCDIR)/*/*.cpp)
 SRC_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC_FILES))
 
 # Test targets
@@ -17,7 +17,7 @@ TEST_TARGETS = $(patsubst $(TESTDIR)/%.cpp,$(TARGET_DIR)/%,$(TEST_SRCS))
 all: directories $(SRC_OBJS) $(TEST_TARGETS)
 
 directories:
-	mkdir -p $(TARGET_DIR) $(OBJDIR)
+	mkdir -p $(TARGET_DIR) $(OBJDIR) $(OBJDIR)/ethernet $(OBJDIR)/device
 
 # ビルドルール: テスト実行ファイル
 $(TARGET_DIR)/%: $(TESTDIR)/%.cpp $(SRC_OBJS)
@@ -25,6 +25,7 @@ $(TARGET_DIR)/%: $(TESTDIR)/%.cpp $(SRC_OBJS)
 
 # ビルドルール: ソースファイルのオブジェクトファイル
 $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # 特定のテストをビルド
@@ -36,7 +37,7 @@ run-%: $(TARGET_DIR)/%
 	sudo $<
 
 clean:
-	rm -rf $(OBJDIR)/*.o $(TEST_TARGETS)
+	rm -rf $(OBJDIR)/*.o $(OBJDIR)/*/*.o $(TEST_TARGETS)
 
 list-tests:
 	@echo "利用可能なテスト:"

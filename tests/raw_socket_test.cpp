@@ -2,7 +2,7 @@
 #include <csignal>
 #include <memory>
 #include <array>
-#include "raw_socket_device.h"
+#include "../src/device/raw_socket_device.h"
 
 // Volatile flag for termination
 volatile std::sig_atomic_t terminate = 0;
