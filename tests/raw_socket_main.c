@@ -1,26 +1,25 @@
 #include <signal.h>
 #include <stdio.h>
-#include "socket_device.h"
+#include <stdlib.h>
+#include <sys/poll.h>
+#include "network_device.h"
 
-volatile sig_atomic_t terminate;
+// Volatile flag for termination
+volatile sig_atomic_t terminate = 0;
 
-static void on_signal(int s) { terminate = 1; }
+// Signal handler for graceful termination
+static void signal_handler(int signum) {
+    terminate = 1;
+}
 
+// Callback function for received packets
 static void rx_handler(uint8_t *frame, size_t len, void *arg) {
-  fprintf(stderr, "receive %zu octets\n", len);
+    fprintf(stderr, "Received %zu octets\n", len);
 }
 
 // External functions defined in raw_socket_device.c
 extern NetworkDevice* create_raw_socket_device(const char* interface_name, int mtu);
 extern void destroy_raw_socket_device(NetworkDevice* device);
-
-// Volatile flag for termination
-volatile sig_atomic_t terminate;
-
-// Signal handler for graceful termination
-void signal_handler(int signum) {
-    terminate = 1;
-}
 
 int main(int argc, char* argv[]) {
     // Create and initialize the device

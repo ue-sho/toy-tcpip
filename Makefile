@@ -1,13 +1,30 @@
-TEST = test/raw_soc_test
-OBJS = raw/soc.o
+CC = gcc
+CFLAGS = -Wall -I./src -I/usr/local/opt/libpcap/include
+LDFLAGS = -L/usr/local/opt/libpcap/lib -lpcap
+TARGET = bin/toy-tcpip
+SRCDIR = src
+TESTDIR = tests
+OBJDIR = obj
 
-CFLAGS = -I/usr/local/include
+# Source files
+SRCS = $(SRCDIR)/raw_socket_device.c $(TESTDIR)/raw_socket_main.c
+OBJS = $(OBJDIR)/raw_socket_device.o $(OBJDIR)/raw_socket_main.o
 
-test/raw_soc_test: test/raw_soc_test.c $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) test/raw_soc_test.c
+all: $(TARGET)
 
-.c.o:
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(OBJDIR)/%.o: $(TESTDIR)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+run: $(TARGET)
+	sudo $(TARGET)
+
 clean:
-	rm -rf $(TEST) $(TEST:=.o) $(OBJS)
+	rm -rf $(TARGET) $(OBJS)
+
+.PHONY: all run clean

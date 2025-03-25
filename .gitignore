@@ -1,3 +1,4 @@
 *.o
 
+bin/
 test/raw_socket_test
