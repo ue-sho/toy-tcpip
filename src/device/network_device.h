@@ -25,8 +25,7 @@ public:
     virtual int open() = 0;
     virtual void close() = 0;
     virtual int send(uint8_t* buffer, int length) = 0;
-    virtual int receive(uint8_t* buffer, int buffer_size,
-                       const PacketCallback& callback, void* arg, int timeout) = 0;
+    virtual int receive(const PacketCallback& callback, void* arg, int timeout) = 0;
     virtual bool isOpen() const = 0;
 
     // Common getters

@@ -139,9 +139,7 @@ int RawSocketDevice::send(uint8_t* buffer, int length) {
 }
 
 // Receive data from the device
-int RawSocketDevice::receive([[maybe_unused]] uint8_t* buffer,
-                            [[maybe_unused]] int buffer_size,
-                            const PacketCallback& callback, void* arg, int timeout) {
+int RawSocketDevice::receive(const PacketCallback& callback, void* arg, int timeout) {
     if (!isOpen()) {
         std::cerr << "Device not open" << std::endl;
         return -1;

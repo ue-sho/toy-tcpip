@@ -117,8 +117,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Device opened successfully" << std::endl;
 
         // Receive packets with a 1 second timeout
-        uint8_t buffer[2048];
-        device->receive(buffer, sizeof(buffer), packet_handler, nullptr, 1000);
+        device->receive(packet_handler, nullptr, 1000);
 
         // Close the device
         device->close();

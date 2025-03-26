@@ -192,6 +192,7 @@ int main(int argc, char** argv) {
 
             // Process pending ARP requests
             arp->processPendingRequests();
+            arp->checkCacheTimeout();
 
             // Process fragment timeouts
             ip->processFragmentTimeouts();
@@ -231,7 +232,7 @@ int main(int argc, char** argv) {
             }
 
             // Sleep to reduce CPU usage
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
         // Print final statistics

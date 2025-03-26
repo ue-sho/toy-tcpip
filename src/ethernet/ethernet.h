@@ -19,6 +19,8 @@ enum class EtherType : uint16_t {
     // Add more as needed
 };
 
+std::string getEtherTypeDescription(EtherType type);
+
 // Ethernet header structure
 #pragma pack(push, 1)
 struct EthernetHeader {

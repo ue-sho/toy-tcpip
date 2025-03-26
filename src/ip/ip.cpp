@@ -337,12 +337,13 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
 
         // Wait for resolution (in a real implementation, this would be asynchronous)
         std::cout << "Waiting for ARP resolution..." << std::endl;
-        for (int i = 0; i < 10 && !resolved; i++) {
+        for (int i = 0; i < 100 && !resolved; i++) {
             // Process pending requests
             arp_->processPendingRequests();
+            arp_->checkCacheTimeout();
 
             // Wait for a bit
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
         }
 
         if (!resolved) {
@@ -353,6 +354,92 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
         std::cout << "Successfully resolved MAC address for " << ipToString(dst_ip)
                   << " -> " << macToString(dst_mac) << std::endl;
     }
+
+    return sendPacketInternal(dst_ip, protocol, data, length, dst_mac, options);
+}
+
+void IP::sendPacketAsync(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
+                       size_t length, IPSendCallback callback, const IPSendOptions& options) {
+    // Check maximum packet size
+    if (length > IP_MAX_PACKET_SIZE - IP_HEADER_MIN_SIZE) {
+        std::cerr << "IP packet too large" << std::endl;
+        if (callback) {
+            callback(false, dst_ip);
+        }
+        return;
+    }
+
+    // If destination is local, don't send
+    if (isLocalIP(dst_ip)) {
+        std::cerr << "Cannot send IP packet to self" << std::endl;
+        if (callback) {
+            callback(false, dst_ip);
+        }
+        return;
+    }
+
+    // Create a copy of the data since it may not be valid after this function returns
+    uint8_t* data_copy = new uint8_t[length];
+    std::memcpy(data_copy, data, length);
+
+    // Resolve MAC address asynchronously
+    MacAddress dst_mac;
+    if (!arp_->lookup(dst_ip, dst_mac)) {
+        // ARP resolution needed
+        std::cout << "ARP resolution needed for " << ipToString(dst_ip) << " (async)" << std::endl;
+
+        // Start ARP resolution with callback
+        arp_->resolve(dst_ip, [this, dst_ip, protocol, data_copy, length, callback, options]
+            (IPv4Address ip, const MacAddress& mac, bool success) {
+            std::cout << "ARP async callback received: IP=" << ipToString(ip)
+                      << ", MAC=" << macToString(mac)
+                      << ", success=" << (success ? "true" : "false") << std::endl;
+
+            if (success) {
+                // ARP resolution successful, send the packet
+                bool send_result = sendPacketInternal(dst_ip, protocol, data_copy, length, mac, options);
+
+                // Call the user callback with the result
+                if (callback) {
+                    callback(send_result, dst_ip);
+                }
+            } else {
+                // ARP resolution failed
+                std::cerr << "Failed to resolve MAC address for " << ipToString(dst_ip) << " (async)" << std::endl;
+                if (callback) {
+                    callback(false, dst_ip);
+                }
+            }
+
+            // Free the data copy
+            delete[] data_copy;
+        });
+    } else {
+        // MAC address already in cache, send immediately
+        bool send_result = sendPacketInternal(dst_ip, protocol, data_copy, length, dst_mac, options);
+
+        // Call the user callback with the result
+        if (callback) {
+            callback(send_result, dst_ip);
+        }
+
+        // Free the data copy
+        delete[] data_copy;
+    }
+}
+
+bool IP::sendPacketInternal(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
+                          size_t length, const MacAddress& dst_mac, const IPSendOptions& options) {
+    // Create IP packet
+    IPPacket packet(protocol, local_ip_, dst_ip);
+    packet.setTTL(options.ttl);
+    packet.setDSCP(options.dscp);
+    packet.setECN(options.ecn);
+    packet.setDontFragment(options.dont_fragment);
+    packet.setIdentification(generateIPId());
+
+    // Check if we need to fragment the packet
+    size_t mtu = ethernet_->getDeviceMtu() - IP_HEADER_MIN_SIZE;
 
     // If packet fits in MTU, send it
     if (length <= mtu) {
@@ -374,6 +461,13 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
                   << ", protocol=" << (int)protocol
                   << ", size=" << serialized_size << " bytes" << std::endl;
         return ethernet_->sendFrame(dst_mac, EtherType::IPV4, buffer.data(), serialized_size);
+    }
+
+    // Fragment the packet if it's too large
+    if (options.dont_fragment) {
+        // Packet is too large and DF is set
+        std::cerr << "IP packet too large for MTU and DF is set" << std::endl;
+        return false;
     }
 
     // Fragment the packet

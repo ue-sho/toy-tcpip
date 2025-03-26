@@ -19,8 +19,7 @@ public:
     int open() override;
     void close() override;
     int send(uint8_t* buffer, int length) override;
-    int receive(uint8_t* buffer, int buffer_size,
-               const PacketCallback& callback, void* arg, int timeout) override;
+    int receive(const PacketCallback& callback, void* arg, int timeout) override;
     bool isOpen() const override;
 
 private:

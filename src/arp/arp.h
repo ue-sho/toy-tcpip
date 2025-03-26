@@ -159,8 +159,8 @@ private:
 
     // Entry timeout constants
     static constexpr std::chrono::seconds CACHE_TIMEOUT{60 * 20}; // 20 minutes
-    static constexpr std::chrono::seconds REQUEST_TIMEOUT{1};    // 1 second
-    static constexpr int MAX_RETRIES = 3;                        // Maximum retry count
+    static constexpr std::chrono::seconds REQUEST_TIMEOUT{3};    // 1 second
+    static constexpr int MAX_RETRIES = 5;                        // Maximum retry count
 
     std::shared_ptr<Ethernet> ethernet_;    // Ethernet layer
     IPv4Address local_ip_;                  // Local IP address

@@ -4,6 +4,20 @@
 #include <sstream>
 #include <iomanip>
 #include <map>
+#include <iostream>
+
+std::string getEtherTypeDescription(EtherType type) {
+    switch (type) {
+        case EtherType::IPV4:
+            return "IPv4";
+        case EtherType::ARP:
+            return "ARP";
+        case EtherType::IPV6:
+            return "IPv6";
+        default:
+            return "Unknown";
+    }
+}
 
 // EthernetFrame implementation
 
@@ -131,20 +145,26 @@ bool Ethernet::sendFrame(const MacAddress& dst_mac, EtherType type, const uint8_
     // Serialize frame to buffer
     size_t serialized_size = frame.serialize(buffer.data(), buffer_size);
     if (serialized_size == 0) {
+        std::cerr << "Failed to serialize Ethernet frame" << std::endl;
         return false;
     }
 
+    // std::cout << "Sending Ethernet frame: dst=" << macToString(dst_mac)
+    //           << ", src=" << macToString(getMacAddress())
+    //           << ", type=0x" << std::hex << static_cast<int>(type) << std::dec
+    //           << ", size=" << serialized_size << " bytes" << std::endl;
+
     // Send frame
     int sent = device_->send(buffer.data(), serialized_size);
+    if (sent <= 0) {
+        std::cerr << "Failed to send Ethernet frame: error code " << sent << std::endl;
+    }
     return sent > 0;
 }
 
 void Ethernet::receiveFrames(int timeout_ms) {
-    // Allocate buffer for received frame
-    std::vector<uint8_t> buffer(ETHERNET_MAX_FRAME_SIZE);
-
     // Receive packets
-    device_->receive(buffer.data(), buffer.size(), packetReceiveCallback, this, timeout_ms);
+    device_->receive(packetReceiveCallback, this, timeout_ms);
 }
 
 void Ethernet::registerHandler(EtherType type, ProtocolHandler handler) {
@@ -168,14 +188,25 @@ void Ethernet::packetReceiveCallback(uint8_t* buffer, size_t length, void* arg) 
     auto frame = EthernetFrame::fromBuffer(buffer, length);
     if (!frame) {
         // Invalid frame
+        std::cerr << "Received invalid Ethernet frame (" << length << " bytes)" << std::endl;
         return;
     }
 
+    // Get frame information
+    // const MacAddress& src_mac = frame->getSourceMac();
+    // const MacAddress& dst_mac = frame->getDestinationMac();
+    EtherType ether_type = frame->getEtherType();
+
+    // std::cout << "Received Ethernet frame: src=" << macToString(src_mac)
+    //           << ", dst=" << macToString(dst_mac)
+    //           << ", type=" << getEtherTypeDescription(ether_type) << std::dec
+    //           << ", size=" << length << " bytes" << std::endl;
+
     // Get Ethernet type
-    uint16_t ether_type = static_cast<uint16_t>(frame->getEtherType());
+    uint16_t type_value = static_cast<uint16_t>(ether_type);
 
     // Find handler for this protocol
-    auto it = ethernet->handlers_.find(ether_type);
+    auto it = ethernet->handlers_.find(type_value);
     if (it != ethernet->handlers_.end()) {
         // Call handler
         const auto& payload = frame->getPayload();
@@ -186,5 +217,4 @@ void Ethernet::packetReceiveCallback(uint8_t* buffer, size_t length, void* arg) 
             frame->getDestinationMac()
         );
     }
-    // Silently drop frames without a registered handler
 }

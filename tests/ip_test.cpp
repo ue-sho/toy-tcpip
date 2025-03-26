@@ -100,11 +100,11 @@ int main(int argc, char** argv) {
             // Send via IP layer
             IPSendOptions options;
             options.ttl = 64;
-            if (!ip->sendPacket(target_ip, IPProtocol::UDP,
+            ip->sendPacketAsync(target_ip, IPProtocol::UDP,
                                reinterpret_cast<const uint8_t*>(payload),
-                               payload_len, options)) {
-                std::cerr << "Failed to send test packet" << std::endl;
-            }
+                               payload_len, [](bool success, IPv4Address dst_ip) {
+                                   std::cout << "Packet sent: " << (success ? "success" : "failed") << std::endl;
+                               }, options);
         }
 
         // Main loop

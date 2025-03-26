@@ -38,12 +38,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
 
     std::cout << "Device opened, waiting for packets..." << std::endl;
 
-    // Buffer for receiving data
-    std::array<uint8_t, 1500> frame;
-
     // Receiving data
     while (!terminate) {
-        int length = device->receive(frame.data(), frame.size(), rxHandler, nullptr, 1000);
+        int length = device->receive(rxHandler, nullptr, 1000);
 
         if (length > 0) {
             std::cout << "Received " << length << " bytes" << std::endl;

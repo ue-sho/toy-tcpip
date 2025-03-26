@@ -152,6 +152,9 @@ struct IPFragmentEntry {
 using IPProtocolHandler = std::function<void(const uint8_t* data, size_t length,
                                            IPv4Address src_ip, IPv4Address dst_ip)>;
 
+// IP send completion callback type
+using IPSendCallback = std::function<void(bool success, IPv4Address dst_ip)>;
+
 // IP options for sending
 struct IPSendOptions {
     bool dont_fragment;     // Set Don't Fragment flag
@@ -173,10 +176,16 @@ public:
     // Initialize IP layer
     bool init();
 
-    // Send IP packet
+    // Send IP packet (synchronous version)
     bool sendPacket(IPv4Address dst_ip, uint8_t protocol,
                    const uint8_t* data, size_t length,
                    const IPSendOptions& options = IPSendOptions());
+
+    // Send IP packet (asynchronous version with callback)
+    void sendPacketAsync(IPv4Address dst_ip, uint8_t protocol,
+                       const uint8_t* data, size_t length,
+                       IPSendCallback callback,
+                       const IPSendOptions& options = IPSendOptions());
 
     // Register protocol handler
     void registerProtocolHandler(uint8_t protocol, IPProtocolHandler handler);
@@ -197,6 +206,12 @@ public:
     void processFragmentTimeouts();
 
 private:
+    // Internal send function (handles both sync and async cases)
+    bool sendPacketInternal(IPv4Address dst_ip, uint8_t protocol,
+                          const uint8_t* data, size_t length,
+                          const MacAddress& dst_mac,
+                          const IPSendOptions& options);
+
     // IP packet handler (called by Ethernet layer)
     void handleIPPacket(const uint8_t* data, size_t length,
                        const MacAddress& src_mac, const MacAddress& dst_mac);
