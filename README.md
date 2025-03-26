@@ -83,8 +83,8 @@ sudo ./bin/icmp_test en0 192.168.1.100 192.168.1.1
   - [x] Fragmentation
   - [x] Checksum verification
   - [x] Timeout handling
-- [x] ICMP
-  - [x] Echo request/reply
-  - [x] Statistics display
+- [ ] ICMP (implemented but not working)
+  - [ ] Echo request/reply
+  - [ ] Statistics display
 - [ ] UDP
-- [ ] TCP
+- [x] TCP

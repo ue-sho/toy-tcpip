@@ -88,9 +88,31 @@ int RawSocketDevice::open() {
         return -1;
     }
 
+    // Set filter to capture only IPv4 and ARP packets
+    std::string filter_exp = "arp or ip";
+    if (pcap_compile(context_->handle, &context_->fp, filter_exp.c_str(), 0, PCAP_NETMASK_UNKNOWN) == -1) {
+        std::cerr << "Couldn't parse filter " << filter_exp << ": "
+                  << pcap_geterr(context_->handle) << std::endl;
+        context_->handle = nullptr;
+        return -1;
+    }
+
+    if (pcap_setfilter(context_->handle, &context_->fp) == -1) {
+        std::cerr << "Couldn't install filter " << filter_exp << ": "
+                  << pcap_geterr(context_->handle) << std::endl;
+        pcap_freecode(&context_->fp);
+        context_->handle = nullptr;
+        return -1;
+    }
+
+    // Get link-layer header type
+    int datalink = pcap_datalink(context_->handle);
+    std::cout << "Device " << name_ << " datalink type: " << datalink << std::endl;
+
     // Get MAC address
     if (getMacAddress() < 0) {
         std::cerr << "Failed to get MAC address for " << name_ << std::endl;
+        pcap_freecode(&context_->fp);
         context_->handle = nullptr;
         return -1;
     }
@@ -99,6 +121,7 @@ int RawSocketDevice::open() {
     if (pcap_setnonblock(context_->handle, 1, context_->errbuf) != 0) {
         std::cerr << "Failed to set non-blocking mode: "
                   << context_->errbuf << std::endl;
+        pcap_freecode(&context_->fp);
         context_->handle = nullptr;
         return -1;
     }
@@ -118,7 +141,10 @@ int RawSocketDevice::open() {
 // Close the device
 void RawSocketDevice::close() {
     if (context_) {
-        context_->handle = nullptr;
+        if (context_->handle) {
+            pcap_freecode(&context_->fp);
+            context_->handle = nullptr;
+        }
     }
 }
 

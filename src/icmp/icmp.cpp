@@ -194,6 +194,11 @@ bool ICMP::sendPacket(IPv4Address dst_ip, const ICMPPacket& packet) {
     IPSendOptions options;
     options.ttl = 64; // Default TTL for ICMP
 
+    // ip_->sendPacketAsync(dst_ip, IPProtocol::ICMP, buffer.data(), buffer.size(), [](bool success, IPv4Address dst_ip) {
+    //     std::cout << "ICMP packet sent: " << (success ? "success" : "failed") << std::endl;
+    // }, options);
+    // return true;
+
     return ip_->sendPacket(dst_ip, IPProtocol::ICMP, buffer.data(), buffer.size(), options);
 }
 

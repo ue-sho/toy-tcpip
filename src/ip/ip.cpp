@@ -298,16 +298,6 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
         return false;
     }
 
-    // Create IP packet
-    IPPacket packet(protocol, local_ip_, dst_ip);
-    packet.setTTL(options.ttl);
-    packet.setDSCP(options.dscp);
-    packet.setECN(options.ecn);
-    packet.setDontFragment(options.dont_fragment);
-
-    // Set identification
-    packet.setIdentification(generateIPId());
-
     // Check if we need to fragment the packet
     size_t mtu = ethernet_->getDeviceMtu() - IP_HEADER_MIN_SIZE;
 
@@ -337,13 +327,12 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
 
         // Wait for resolution (in a real implementation, this would be asynchronous)
         std::cout << "Waiting for ARP resolution..." << std::endl;
-        for (int i = 0; i < 100 && !resolved; i++) {
+        for (int i = 0; i < 5 && !resolved; i++) {
             // Process pending requests
             arp_->processPendingRequests();
-            arp_->checkCacheTimeout();
 
             // Wait for a bit
-            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
 
         if (!resolved) {

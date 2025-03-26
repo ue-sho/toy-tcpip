@@ -143,6 +143,15 @@ int main(int argc, char** argv) {
             return 1;
         }
 
+        // Manually add ARP entry for target IP
+        std::string target_mac_str = "2c:cf:67:17:e4:1c"; // From system ARP table
+        MacAddress target_mac = stringToMac(target_mac_str);
+        if (target_mac != MAC_ZERO) {
+            std::cout << "Manually adding ARP entry for " << target_ip_str
+                      << " -> " << target_mac_str << std::endl;
+            arp->addEntry(target_ip, target_mac, ARPEntryState::PERMANENT);
+        }
+
         // Register handler for ECHO_REPLY
         icmp->registerTypeHandler(ICMPType::ECHO_REPLY,
             [&ping_stats, ping_id](const ICMPPacket& packet, IPv4Address src_ip, IPv4Address dst_ip) {
@@ -179,7 +188,7 @@ int main(int argc, char** argv) {
         );
 
         // Display device info
-        std::cout << "PING " << target_ip_str << " (" << target_ip_str << ")" << std::endl;
+        std::cout << "PING " << target_ip_str << std::endl;
 
         // Send pings periodically
         auto last_ping_time = std::chrono::steady_clock::now();

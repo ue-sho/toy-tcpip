@@ -123,6 +123,7 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
         if (callback) {
             callback(ip, local_mac, true);
         }
+        std::cout << "ARP resolve: " << ipToString(ip) << " is local IP, using local MAC" << std::endl;
         return true;
     }
 
@@ -131,6 +132,7 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
         if (callback) {
             callback(ip, MAC_BROADCAST, true);
         }
+        std::cout << "ARP resolve: " << ipToString(ip) << " is broadcast IP, using broadcast MAC" << std::endl;
         return true;
     }
 
@@ -144,6 +146,8 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
         if (callback) {
             callback(ip, it->second.mac, true);
         }
+        std::cout << "ARP resolve: " << ipToString(ip) << " found in cache: "
+                  << macToString(it->second.mac) << std::endl;
         return true;
     }
 
@@ -156,6 +160,7 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
         if (callback) {
             pending_it->callbacks.push_back(callback);
         }
+        std::cout << "ARP resolve: " << ipToString(ip) << " request already pending" << std::endl;
         return true;
     }
 
@@ -172,6 +177,7 @@ bool ARP::resolve(IPv4Address ip, ARPResolveCallback callback) {
     }
 
     // Send ARP request
+    std::cout << "ARP resolve: Starting new resolution for " << ipToString(ip) << std::endl;
     sendARPRequest(ip);
 
     return true;
@@ -245,11 +251,15 @@ void ARP::processPendingRequests() {
                 // Retry
                 it->retries++;
                 it->timestamp = now;
+                std::cout << "ARP request timeout, retrying (" << it->retries << "/" << MAX_RETRIES
+                          << ") for IP: " << ipToString(it->ip) << std::endl;
                 sendARPRequest(it->ip);
                 ++it;
             } else {
                 // If max retries exceeded, fail
                 IPv4Address ip = it->ip;  // Save IP before iterator is invalidated
+                std::cout << "ARP resolution failed after " << MAX_RETRIES
+                          << " retries for IP: " << ipToString(ip) << std::endl;
                 completePendingRequest(ip, MAC_ZERO, false);
 
                 // Add to list of IPs to remove from cache
@@ -267,6 +277,7 @@ void ARP::processPendingRequests() {
     // Remove entries from cache
     for (const auto& ip : ips_to_remove) {
         cache_.erase(ip);
+        std::cout << "Removed failed ARP entry from cache: " << ipToString(ip) << std::endl;
     }
 }
 
