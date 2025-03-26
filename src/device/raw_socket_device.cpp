@@ -71,7 +71,7 @@ int RawSocketDevice::getMacAddress() {
 
     if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
         std::cerr << "ioctl failed on interface " << name_ << std::endl;
-        close(sock);
+        ::close(sock);
         return -1;
     }
 
@@ -80,7 +80,7 @@ int RawSocketDevice::getMacAddress() {
         mac_address_[i] = static_cast<uint8_t>(ifr.ifr_hwaddr.sa_data[i]);
     }
 
-    close(sock);
+    ::close(sock);
     return 0;
 #else
     // BSD implementation (Mac OS X, FreeBSD, etc.)

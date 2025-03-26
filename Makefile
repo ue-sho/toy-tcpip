@@ -1,6 +1,14 @@
 CC = g++
-CFLAGS = -Wall -std=c++17 -I./src -I/usr/local/opt/libpcap/include -D_GLIBCXX_USE_CXX11_ABI=0
-LDFLAGS = -L/usr/local/opt/libpcap/lib -lpcap
+# OSに応じてパスを変更
+ifeq ($(shell uname), Darwin)
+  # macOS
+  CFLAGS = -Wall -std=c++17 -I./src -I/usr/local/opt/libpcap/include -D_GLIBCXX_USE_CXX11_ABI=0
+  LDFLAGS = -L/usr/local/opt/libpcap/lib -lpcap
+else
+  # Linux (Raspberry Pi)
+  CFLAGS = -Wall -std=c++17 -I./src -D_GLIBCXX_USE_CXX11_ABI=0
+  LDFLAGS = -lpcap
+endif
 TARGET_DIR = bin
 OBJDIR = obj
 SRCDIR = src

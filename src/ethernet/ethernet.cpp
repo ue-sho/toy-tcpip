@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <map>
 #include <iostream>
+#include <arpa/inet.h>  // For htons and ntohs functions
 
 std::string getEtherTypeDescription(EtherType type) {
     switch (type) {

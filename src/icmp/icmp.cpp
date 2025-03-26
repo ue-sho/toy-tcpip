@@ -2,6 +2,7 @@
 #include <cstring>
 #include <iostream>
 #include <random>
+#include <arpa/inet.h>  // For htons and ntohs functions
 
 // ICMPPacket constructors
 ICMPPacket::ICMPPacket() {
