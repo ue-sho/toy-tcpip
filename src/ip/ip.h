@@ -205,6 +205,9 @@ public:
     // Process IP fragment timeouts
     void processFragmentTimeouts();
 
+    // Process ARP timeouts
+    void processTimeouts();
+
 private:
     // Internal send function (handles both sync and async cases)
     bool sendPacketInternal(IPv4Address dst_ip, uint8_t protocol,

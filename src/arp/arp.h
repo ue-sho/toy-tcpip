@@ -94,18 +94,23 @@ struct ARPEntry {
 // ARP resolution callback type
 using ARPResolveCallback = std::function<void(IPv4Address ip, const MacAddress& mac, bool success)>;
 
-// Pending ARP request
+// Structure for pending ARP requests
 struct PendingARPRequest {
-    IPv4Address ip;                    // IP address to resolve
-    std::vector<ARPResolveCallback> callbacks; // Callbacks to call on completion
-    std::chrono::steady_clock::time_point timestamp; // Request time
-    int retries;                       // Retry count
+    IPv4Address ip;
+    std::vector<ARPResolveCallback> callbacks;
+    std::chrono::steady_clock::time_point last_sent;
+    int retries;
 
-    PendingARPRequest(IPv4Address ip_addr)
-        : ip(ip_addr),
-          timestamp(std::chrono::steady_clock::now()),
-          retries(0) {}
+    PendingARPRequest(IPv4Address ip)
+        : ip(ip), last_sent(std::chrono::steady_clock::now()),
+            retries(0) {}
 };
+
+// ARP constants
+constexpr size_t ARP_CACHE_MAX_SIZE = 100;
+constexpr std::chrono::milliseconds ARP_RESPONSE_TIMEOUT(10000);  // 10 seconds timeout
+constexpr std::chrono::seconds ARP_CACHE_TIMEOUT(300);  // 5 minutes timeout
+constexpr uint8_t ARP_MAX_RETRIES = 5;
 
 // ARP module
 class ARP {
@@ -113,35 +118,25 @@ public:
     // Constructor
     ARP(std::shared_ptr<Ethernet> ethernet, IPv4Address local_ip);
 
-    // Initialize ARP module
+    // Initialize the ARP module
     bool init();
 
     // Resolve MAC address for IP
     bool resolve(IPv4Address ip, ARPResolveCallback callback = nullptr);
 
-    // Lookup MAC address in cache
+    // Direct MAC lookup (returns false if not in cache)
     bool lookup(IPv4Address ip, MacAddress& mac);
 
-    // Add entry to cache
+    // ARP cache manipulation
     void addEntry(IPv4Address ip, const MacAddress& mac, ARPEntryState state = ARPEntryState::RESOLVED);
-
-    // Remove entry from ARP cache
     void removeEntry(IPv4Address ip);
 
-    // Clear ARP cache
-    void clearCache();
-
-    // Process pending requests
-    void processPendingRequests();
-
-    // Check ARP cache entries for timeout
-    void checkCacheTimeout();
-
-    // Set local IP address
+    // Other methods
     void setLocalIP(IPv4Address ip);
-
-    // Get local IP address
     IPv4Address getLocalIP() const;
+
+    // Process timeouts in ARP requests and cache
+    void processArpTimeouts();
 
 private:
     // ARP packet handler
@@ -156,11 +151,6 @@ private:
 
     // Complete pending request
     void completePendingRequest(IPv4Address ip, const MacAddress& mac, bool success);
-
-    // Entry timeout constants
-    static constexpr std::chrono::seconds CACHE_TIMEOUT{60 * 20}; // 20 minutes
-    static constexpr std::chrono::seconds REQUEST_TIMEOUT{1};    // 1 second
-    static constexpr int MAX_RETRIES = 5;                        // Maximum retry count
 
     std::shared_ptr<Ethernet> ethernet_;    // Ethernet layer
     IPv4Address local_ip_;                  // Local IP address

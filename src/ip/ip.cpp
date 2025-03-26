@@ -327,12 +327,13 @@ bool IP::sendPacket(IPv4Address dst_ip, uint8_t protocol, const uint8_t* data,
 
         // Wait for resolution (in a real implementation, this would be asynchronous)
         std::cout << "Waiting for ARP resolution..." << std::endl;
-        for (int i = 0; i < 5 && !resolved; i++) {
+        for (int i = 0; i < 10 && !resolved; i++) {  // Increased from 5 to 10 attempts
             // Process pending requests
-            arp_->processPendingRequests();
+            arp_->processArpTimeouts();
 
             // Wait for a bit
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::cout << "ARP resolution attempt " << (i+1) << "/10..." << std::endl;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));  // Increased from 500ms to 1000ms
         }
 
         if (!resolved) {
@@ -703,4 +704,12 @@ bool IP::tryReassemble(IPFragmentEntry& entry) {
 
 uint16_t IP::generateIPId() {
     return ip_id_counter_++;
+}
+
+void IP::processTimeouts() {
+    // Process fragment timeouts
+    processFragmentTimeouts();
+
+    // Process ARP timeouts
+    arp_->processArpTimeouts();
 }

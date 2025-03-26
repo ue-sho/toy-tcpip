@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
             ethernet->receiveFrames(100);
 
             // Process pending ARP requests
-            arp->processPendingRequests();
+            arp->processArpTimeouts();
 
             // Process fragment timeouts
             ip->processFragmentTimeouts();

@@ -196,15 +196,10 @@ int main(int argc, char** argv) {
 
         // Main loop
         while (running && (ping_count == -1 || ping_stats.sent < ping_count)) {
-            // Receive ethernet frames
+            // Process the stack
             ethernet->receiveFrames(100);
-
-            // Process pending ARP requests
-            arp->processPendingRequests();
-            arp->checkCacheTimeout();
-
-            // Process fragment timeouts
             ip->processFragmentTimeouts();
+            arp->processArpTimeouts();
 
             // Check if it's time to send another ping
             auto now = std::chrono::steady_clock::now();

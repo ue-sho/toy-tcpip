@@ -221,82 +221,61 @@ void ARP::addEntry(IPv4Address ip, const MacAddress& mac, ARPEntryState state) {
 
 void ARP::removeEntry(IPv4Address ip) {
     std::lock_guard<std::mutex> lock(cache_mutex_);
-
-    auto it = cache_.find(ip);
-    if (it != cache_.end()) {
-        cache_.erase(it);
-    }
+    cache_.erase(ip);
 }
 
-void ARP::clearCache() {
+void ARP::processArpTimeouts() {
     std::lock_guard<std::mutex> lock(cache_mutex_);
-    cache_.clear();
-}
 
-void ARP::processPendingRequests() {
     auto now = std::chrono::steady_clock::now();
 
-    std::lock_guard<std::mutex> lock(cache_mutex_);
+    // Process pending requests
+    for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
+        // Check if the request has timed out
+        if (now - it->last_sent > ARP_RESPONSE_TIMEOUT) {
+            // Check if we've tried too many times
+            if (it->retries >= ARP_MAX_RETRIES) {
+                // Failed to resolve
+                std::cout << "ARP request timeout, max retries reached for IP: "
+                          << ipToString(it->ip) << std::endl;
 
-    // Store IPs to remove from cache after processing
-    std::vector<IPv4Address> ips_to_remove;
+                // Call callbacks with failure
+                completePendingRequest(it->ip, MAC_ZERO, false);
 
-    // Process timed out pending requests
-    for (auto it = pending_requests_.begin(); it != pending_requests_.end(); ) {
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->timestamp);
+                // Remove entry from cache
+                auto cache_it = cache_.find(it->ip);
+                if (cache_it != cache_.end() && cache_it->second.state == ARPEntryState::INCOMPLETE) {
+                    cache_.erase(cache_it);
+                }
 
-        if (elapsed >= REQUEST_TIMEOUT) {
-            // Timeout
-            if (it->retries < MAX_RETRIES) {
-                // Retry
-                it->retries++;
-                it->timestamp = now;
-                std::cout << "ARP request timeout, retrying (" << it->retries << "/" << MAX_RETRIES
-                          << ") for IP: " << ipToString(it->ip) << std::endl;
-                sendARPRequest(it->ip);
-                ++it;
+                // Remove from pending list
+                it = pending_requests_.erase(it);
             } else {
-                // If max retries exceeded, fail
-                IPv4Address ip = it->ip;  // Save IP before iterator is invalidated
-                std::cout << "ARP resolution failed after " << MAX_RETRIES
-                          << " retries for IP: " << ipToString(ip) << std::endl;
-                completePendingRequest(ip, MAC_ZERO, false);
+                // Retry
+                std::cout << "ARP request timeout, retrying (" << it->retries + 1
+                          << "/" << (int)ARP_MAX_RETRIES << ") for IP: "
+                          << ipToString(it->ip) << std::endl;
 
-                // Add to list of IPs to remove from cache
-                ips_to_remove.push_back(ip);
+                // Send another request
+                sendARPRequest(it->ip);
 
-                // Next iteration
-                // Note: completePendingRequest already removed the entry from pending_requests_
-                // so we don't need to increment the iterator
+                // Update retry count and last sent time
+                it->retries++;
+                it->last_sent = now;
+
+                ++it;
             }
         } else {
             ++it;
         }
     }
 
-    // Remove entries from cache
-    for (const auto& ip : ips_to_remove) {
-        cache_.erase(ip);
-        std::cout << "Removed failed ARP entry from cache: " << ipToString(ip) << std::endl;
-    }
-}
-
-void ARP::checkCacheTimeout() {
-    auto now = std::chrono::steady_clock::now();
-
-    std::lock_guard<std::mutex> lock(cache_mutex_);
-
-    // Remove timed out entries
-    for (auto it = cache_.begin(); it != cache_.end(); ) {
-        if (it->second.state == ARPEntryState::PERMANENT) {
-            // Permanent entries don't timeout
-            ++it;
-            continue;
-        }
-
-        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.timestamp);
-
-        if (elapsed >= CACHE_TIMEOUT) {
+    // Process cache entries
+    for (auto it = cache_.begin(); it != cache_.end();) {
+        // Check if entry has expired
+        if (now - it->second.timestamp > ARP_CACHE_TIMEOUT &&
+            it->second.state == ARPEntryState::RESOLVED) {
+            // Remove expired entry
             it = cache_.erase(it);
         } else {
             ++it;
@@ -337,6 +316,23 @@ void ARP::handleARPPacket(const uint8_t* data, size_t length,
     // Add sender IP and MAC to cache
     addEntry(sender_ip, sender_mac);
 
+    // Check if this is a reply to one of our pending requests
+    if (operation == ARPOperation::REPLY) {
+        // Find in pending requests
+        std::lock_guard<std::mutex> lock(cache_mutex_);
+        auto it = std::find_if(pending_requests_.begin(), pending_requests_.end(),
+                            [sender_ip](const PendingARPRequest& req) { return req.ip == sender_ip; });
+
+        if (it != pending_requests_.end()) {
+            std::cout << "ARP REPLY matches pending request for IP: " << ipToString(sender_ip)
+                      << " with MAC: " << macToString(sender_mac) << std::endl;
+            completePendingRequest(sender_ip, sender_mac, true);
+        } else {
+            std::cout << "ARP REPLY received but no matching pending request for IP: "
+                      << ipToString(sender_ip) << std::endl;
+        }
+    }
+
     // If ARP request for our IP, send ARP reply
     if (operation == ARPOperation::REQUEST && target_ip == local_ip_) {
         std::cout << "Sending ARP reply to " << ipToString(sender_ip) << std::endl;
@@ -345,28 +341,26 @@ void ARP::handleARPPacket(const uint8_t* data, size_t length,
 }
 
 void ARP::sendARPRequest(IPv4Address target_ip) {
-    // Get our MAC address
+    // Create ARP packet
     MacAddress local_mac = ethernet_->getMacAddress();
-
-    // Create ARP request packet
-    ARPPacket packet(ARPOperation::REQUEST,
-                   local_mac, local_ip_,
-                   MAC_ZERO, target_ip);
-
-    // Allocate buffer
-    std::vector<uint8_t> buffer(packet.getSize());
+    ARPPacket packet(ARPOperation::REQUEST, local_mac, local_ip_, MAC_ZERO, target_ip);
 
     // Serialize packet
-    packet.serialize(buffer.data(), buffer.size());
+    std::vector<uint8_t> buffer(packet.getSize());
+    size_t packet_size = packet.serialize(buffer.data(), buffer.size());
 
     // Send through Ethernet layer
-    bool sent = ethernet_->sendFrame(MAC_BROADCAST, EtherType::ARP, buffer.data(), buffer.size());
+    bool sent = ethernet_->sendFrame(MAC_BROADCAST, EtherType::ARP, buffer.data(), packet_size);
 
     std::cout << "Sent ARP request for IP: " << ipToString(target_ip)
               << " from " << ipToString(local_ip_)
-              << " (MAC: " << macToString(local_mac) << ")"
-              << (sent ? " [SUCCESS]" : " [FAILED]")
-              << std::endl;
+              << " (MAC: " << macToString(local_mac) << ") "
+              << "[" << (sent ? "SUCCESS" : "FAILED") << "]" << std::endl;
+
+    std::cout << "  ARP packet details: op=REQUEST, sender=" << macToString(local_mac)
+              << "/" << ipToString(local_ip_) << ", target="
+              << macToString(MAC_ZERO) << "/" << ipToString(target_ip)
+              << ", size=" << packet_size << " bytes" << std::endl;
 }
 
 void ARP::sendARPReply(IPv4Address target_ip, const MacAddress& target_mac) {

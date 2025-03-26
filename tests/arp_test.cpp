@@ -96,10 +96,7 @@ int main(int argc, char* argv[]) {
             ethernet->receiveFrames(100); // 100ms timeout
 
             // Process pending ARP requests
-            arp.processPendingRequests();
-
-            // Check ARP cache timeouts
-            arp.checkCacheTimeout();
+            arp.processArpTimeouts();
 
             // Sleep to reduce CPU usage
             std::this_thread::sleep_for(std::chrono::milliseconds(10));

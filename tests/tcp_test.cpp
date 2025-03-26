@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
         while (running) {
             // Process network layers
             ethernet->receiveFrames(100);
-            arp->processPendingRequests();
+            arp->processArpTimeouts();
             ip->processFragmentTimeouts();
             tcp->processTimers();
 
