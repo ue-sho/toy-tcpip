@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to initialize device: " << interface_name << std::endl;
             return 1;
         }
+        std::cout << "Network device initialized successfully" << std::endl;
 
         // Create ethernet layer
         auto ethernet = std::make_shared<Ethernet>(device);
@@ -108,6 +109,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to initialize ethernet layer" << std::endl;
             return 1;
         }
+        std::cout << "Ethernet layer initialized successfully" << std::endl;
 
         // Create ARP module
         auto arp = std::make_shared<ARP>(ethernet, local_ip);
@@ -115,6 +117,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to initialize ARP module" << std::endl;
             return 1;
         }
+        std::cout << "ARP module initialized successfully" << std::endl;
 
         // Create IP layer
         auto ip = std::make_shared<IP>(ethernet, arp, local_ip);
@@ -122,6 +125,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to initialize IP module" << std::endl;
             return 1;
         }
+        std::cout << "IP layer initialized successfully" << std::endl;
 
         // Create TCP layer
         auto tcp = std::make_shared<TCP>(ip);
@@ -129,6 +133,7 @@ int main(int argc, char** argv) {
             std::cerr << "Failed to initialize TCP module" << std::endl;
             return 1;
         }
+        std::cout << "TCP layer initialized successfully" << std::endl;
 
         // TCP connection
         std::shared_ptr<TCPConnection> connection;
@@ -155,7 +160,8 @@ int main(int argc, char** argv) {
 
             // Connect to remote server
             connection = tcp->connect(remote_ip, port, [&](bool success) {
-                std::cout << "Connection " << (success ? "established" : "failed") << std::endl;
+                std::cout << "Connection callback received - "
+                          << (success ? "success" : "failure") << std::endl;
                 std::lock_guard<std::mutex> lock(status.mutex);
                 status.connected = success;
                 status.cv.notify_all();
@@ -165,9 +171,13 @@ int main(int argc, char** argv) {
                 std::cerr << "Failed to initiate connection" << std::endl;
                 return 1;
             }
+            std::cout << "Connection object created successfully" << std::endl;
 
             // Get connection ID
             conn_id = connection->getConnectionId();
+            std::cout << "Connection ID: local=" << conn_id.local_ip << ":"
+                      << conn_id.local_port << ", remote=" << conn_id.remote_ip
+                      << ":" << conn_id.remote_port << std::endl;
 
             // Register data received callback
             tcp->registerDataReceivedCallback(conn_id, [&](const uint8_t* data, size_t length) {
@@ -178,6 +188,7 @@ int main(int argc, char** argv) {
                 status.data_received = true;
                 status.cv.notify_all();
             });
+            std::cout << "Data received callback registered" << std::endl;
         }
 
         // Main loop

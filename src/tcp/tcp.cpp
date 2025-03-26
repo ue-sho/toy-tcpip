@@ -270,8 +270,34 @@ size_t TCPSegment::getTotalSize() const {
 // Calculate TCP checksum (utility function)
 uint16_t calculateTCPChecksum(const void* tcp_data, size_t tcp_length,
                             IPv4Address src_ip, IPv4Address dst_ip) {
-    // Use the IP checksum utility for actual calculation
-    return calculateIPChecksum(tcp_data, tcp_length);
+    // Create a buffer for the pseudo-header
+    size_t total_length = 12 + tcp_length;  // 12 bytes for pseudo-header
+    std::vector<uint8_t> buffer(total_length, 0);
+
+    // Fill in the pseudo-header
+    // Source IP
+    buffer[0] = (src_ip >> 24) & 0xFF;
+    buffer[1] = (src_ip >> 16) & 0xFF;
+    buffer[2] = (src_ip >> 8) & 0xFF;
+    buffer[3] = src_ip & 0xFF;
+
+    // Destination IP
+    buffer[4] = (dst_ip >> 24) & 0xFF;
+    buffer[5] = (dst_ip >> 16) & 0xFF;
+    buffer[6] = (dst_ip >> 8) & 0xFF;
+    buffer[7] = dst_ip & 0xFF;
+
+    // Reserved (zeros) + Protocol + TCP Length
+    buffer[8] = 0;
+    buffer[9] = IPProtocol::TCP;
+    buffer[10] = (tcp_length >> 8) & 0xFF;
+    buffer[11] = tcp_length & 0xFF;
+
+    // Copy TCP data
+    std::memcpy(buffer.data() + 12, tcp_data, tcp_length);
+
+    // Calculate checksum over the entire buffer (pseudo-header + TCP data)
+    return calculateIPChecksum(buffer.data(), buffer.size());
 }
 
 // TCP Connection implementation
@@ -301,7 +327,12 @@ TCPConnection::TCPConnection(std::shared_ptr<TCP> tcp, IPv4Address local_ip, uin
 bool TCPConnection::connect(TCPConnectionCallback callback) {
     std::lock_guard<std::mutex> lock(mutex_);
 
+    std::cout << "TCPConnection::connect - Starting connection to "
+              << conn_id_.remote_ip << ":" << conn_id_.remote_port << std::endl;
+
     if (state_ != TCPState::CLOSED) {
+        std::cout << "TCPConnection::connect - Cannot connect from state: "
+                  << tcpStateToString(state_) << std::endl;
         return false;  // Can only connect from CLOSED state
     }
 
@@ -314,8 +345,13 @@ bool TCPConnection::connect(TCPConnectionCallback callback) {
     syn_segment.setFlag(TCPFlags::SYN);
     syn_segment.setWindowSize(rcv_wnd_);
 
+    std::cout << "TCPConnection::connect - Sending SYN segment to "
+              << conn_id_.remote_ip << ":" << conn_id_.remote_port
+              << " (seq=" << iss_ << ")" << std::endl;
+
     // Send the SYN segment
     if (!sendSegment(syn_segment)) {
+        std::cout << "TCPConnection::connect - Failed to send SYN segment" << std::endl;
         return false;
     }
 
@@ -327,6 +363,7 @@ bool TCPConnection::connect(TCPConnectionCallback callback) {
 
     // Change state to SYN_SENT
     state_ = TCPState::SYN_SENT;
+    std::cout << "TCPConnection::connect - State changed to SYN_SENT" << std::endl;
     return true;
 }
 
@@ -522,20 +559,31 @@ bool TCPConnection::sendSegment(const TCPSegment& segment) {
 
     size_t segment_size = segment_copy.serialize(buffer.data(), buffer.size());
     if (segment_size == 0) {
+        std::cout << "TCPConnection::sendSegment - Failed to serialize segment" << std::endl;
         return false;
     }
+
+    std::cout << "TCPConnection::sendSegment - Sending segment to "
+              << conn_id_.remote_ip << ":" << conn_id_.remote_port
+              << " (size=" << segment_size << " bytes)" << std::endl;
 
     // Send via IP layer
     IPSendOptions options;
     options.ttl = IP_DEFAULT_TTL;
 
-    return tcp_->getIP()->sendPacket(
+    bool success = tcp_->getIP()->sendPacket(
         conn_id_.remote_ip,
         IPProtocol::TCP,
         buffer.data(),
         segment_size,
         options
     );
+
+    if (!success) {
+        std::cout << "TCPConnection::sendSegment - IP layer failed to send packet" << std::endl;
+    }
+
+    return success;
 }
 
 void TCPConnection::sendReset() {
