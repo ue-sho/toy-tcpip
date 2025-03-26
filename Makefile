@@ -44,10 +44,6 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 build-%: directories $(SRC_OBJS)
 	$(CC) $(CFLAGS) -o $(TARGET_DIR)/$* $(TESTDIR)/$*.cpp $(SRC_OBJS) $(LDFLAGS) -pthread
 
-# Run specific test
-run-%: $(TARGET_DIR)/%
-	sudo $<
-
 clean:
 	rm -rf $(OBJDIR)/*/*.o $(TEST_TARGETS)
 

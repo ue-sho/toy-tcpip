@@ -46,6 +46,7 @@ make build-ethernet_test
 make build-arp_test
 make build-ip_test
 make build-icmp_test
+make build-tcp_test
 ```
 
 ## Running Tests
@@ -64,14 +65,9 @@ sudo ./bin/ip_test <interface_name> <local_ip_address> <target_ip_address>
 
 # ICMP test (ping functionality)
 sudo ./bin/icmp_test <interface_name> <local_ip_address> <target_ip_address> [count]
-```
 
-### Usage Example
-
-To ping IP address 192.168.1.1 using interface `en0`:
-
-```bash
-sudo ./bin/icmp_test en0 192.168.1.100 192.168.1.1
+# TCP test
+sudo ./bin/tcp_test <interface_name> <local_ip_address> <mode> <remote_ip_address> [port]
 ```
 
 ## Implemented Features
@@ -91,8 +87,8 @@ sudo ./bin/icmp_test en0 192.168.1.100 192.168.1.1
   - [x] Fragmentation
   - [x] Checksum verification
   - [x] Timeout handling
-- [ ] ICMP (implemented but not working)
-  - [ ] Echo request/reply
-  - [ ] Statistics display
+- [x] ICMP (implemented but not working)
+  - [x] Echo request/reply
+  - [x] Statistics display
 - [ ] UDP
-- [x] TCP
+- [x] TCP (implemented but not working)
