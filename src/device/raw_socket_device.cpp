@@ -4,10 +4,19 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/select.h>
-#include <net/if_dl.h>
 #include <ifaddrs.h>
 #include <unistd.h>
 #include <errno.h>
+
+#ifdef __linux__
+    #include <net/if.h>
+    #include <sys/ioctl.h>
+    #include <netinet/in.h>
+    #include <net/if_arp.h>
+    #include <arpa/inet.h>
+#else
+    #include <net/if_dl.h>
+#endif
 
 // PcapContext class to encapsulate pcap-specific data
 class PcapContext {
@@ -48,6 +57,33 @@ RawSocketDevice::~RawSocketDevice() {
 
 // Get MAC address of the interface
 int RawSocketDevice::getMacAddress() {
+#ifdef __linux__
+    // Linux specific implementation
+    struct ifreq ifr;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        std::cerr << "Failed to create socket for MAC address retrieval" << std::endl;
+        return -1;
+    }
+
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, name_.c_str(), IFNAMSIZ - 1);
+
+    if (ioctl(sock, SIOCGIFHWADDR, &ifr) < 0) {
+        std::cerr << "ioctl failed on interface " << name_ << std::endl;
+        close(sock);
+        return -1;
+    }
+
+    // Copy MAC address
+    for (int i = 0; i < 6; i++) {
+        mac_address_[i] = static_cast<uint8_t>(ifr.ifr_hwaddr.sa_data[i]);
+    }
+
+    close(sock);
+    return 0;
+#else
+    // BSD implementation (Mac OS X, FreeBSD, etc.)
     struct ifaddrs *ifap, *ifaptr;
     unsigned char *ptr;
 
@@ -67,6 +103,7 @@ int RawSocketDevice::getMacAddress() {
         freeifaddrs(ifap);
     }
     return -1;
+#endif
 }
 
 // Open the device for packet capture

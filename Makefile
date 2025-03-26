@@ -6,6 +6,10 @@ OBJDIR = obj
 SRCDIR = src
 TESTDIR = tests
 
+# For Linux
+# CFLAGS = -Wall -std=c++17 -I./src
+# LDFLAGS = -lpcap
+
 # Source files (excluding test files)
 SRC_FILES = $(wildcard $(SRCDIR)/device/*.cpp) $(wildcard $(SRCDIR)/ethernet/*.cpp) $(wildcard $(SRCDIR)/arp/*.cpp) $(wildcard $(SRCDIR)/ip/*.cpp) $(wildcard $(SRCDIR)/icmp/*.cpp) $(wildcard $(SRCDIR)/tcp/*.cpp) $(wildcard $(SRCDIR)/common/*.cpp)
 SRC_OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRC_FILES))

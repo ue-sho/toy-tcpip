@@ -21,6 +21,14 @@ On macOS, install libpcap using the following command:
 brew install libpcap
 ```
 
+### Linux Setup
+
+On Linux, install libpcap using the following command:
+
+```bash
+sudo apt-get install build-essential cmake libbsd-dev libpcap-dev
+```
+
 ## Building
 
 To build the project:
